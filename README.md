@@ -1,20 +1,62 @@
+<div align="center">
+
+<img src="pothole_agent/static/logo.png" alt="potholejawn emblem" width="120">
+
 # potholejawn
+
+**An AI agent that scans Philadelphia's live 311 data — 5.9 million rows — to route you around the potholes.**
+
+[![tests](https://img.shields.io/badge/tests-40%20passing-brightgreen)](tests)
+[![python](https://img.shields.io/badge/python-3.12-blue)](pyproject.toml)
+[![license](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
+[![live](https://img.shields.io/badge/live-potholejawn.com-f5c518)](https://potholejawn.com)
+
+<img src="docs/screenshots/home.png" alt="Full-viewport map of Philadelphia with 1,500+ live open pothole reports as yellow dots, a floating 'Where to?' search pill, and clickable emoji landmark chips" width="850">
+
+*Every yellow dot is an open 311 pothole report, live from the city — 1,500+ in view before you type anything.*
+
+</div>
 
 Type where you are and where you are going in Philadelphia. An AI agent looks up
 both places, fetches the driving routes, scans each one against the city's live
 311 data for open pothole reports, and recommends the smoother drive, with a map
-of every reported pothole along the way. Product home: [potholejawn.com](https://potholejawn.com).
+of every reported pothole along the way.
 
-![potholejawn](docs/screenshot.png)
+Built solo by David Pugliese at the **Code & Coffee Philadelphia AI Agent Hackathon, September 20, 2026**.
 
-Example from live data: Temple University to Citizens Bank Park. One route passes
-9 open pothole reports, the other 13, for the same 17-minute drive.
+## Try it
 
-The repo also includes a second agent, a 311 **accountability analyst**, that
-answers open-ended questions ("where is the city slowest at fixing potholes?") by
-writing and running guarded SQL. Both share one agent loop.
+Live at **[potholejawn.com](https://potholejawn.com)** (also [potholejawn.app](https://potholejawn.app)) — installable to a phone home screen as a PWA.
 
-Built at the Code & Coffee Philadelphia AI Agent Hackathon, September 20, 2026.
+- The map opens on **every open pothole report in Philly right now**, plotted citywide and clickable.
+- Type a destination into the **"Where to?" pill** — try `Citizens Bank Park` from `Temple University`. Real result from live data: same 17-minute drive, one route passes 9 open pothole reports, the other 13.
+- Or skip typing: tap a **landmark chip** (Liberty Bell, the Rocky steps, the Pennovation Center 🚀 — where this was built) and hit **From here** / **To here**.
+- After a trip, open **"What the agent did"** for the full audit trail, or ask the **311 analyst** an open-ended question ("where is the city slowest at fixing potholes?") right in the panel.
+
+## Features
+
+**Trip agent** — geocodes both endpoints, pulls the main route plus alternatives
+from OSRM, runs a PostGIS query against the city's live 311 API for open
+"Street Defect" reports within 30 m of each route, weighs pothole count, report
+age, and drive time, and recommends a route with a plain-language briefing.
+Agent steps stream to the panel live over Server-Sent Events, so you watch it
+think instead of staring at a spinner.
+
+**311 accountability analyst** — answers open-ended questions by writing and
+running guarded SQL against the full 5.9M-row dataset, reading its own errors
+and retrying. Available from the "Ask the analyst" box in the panel or the CLI.
+Both agents share one generic tool loop.
+
+**Map-first UI** — full-viewport map with a floating "Where to?" search pill, a
+slide-in results panel on desktop and a bottom sheet on mobile, a citywide layer
+of every open pothole report, clickable landmark chips, route signs (A/B with
+report counts), the brand emblem as a map watermark, and PWA install support.
+
+## Screenshots
+
+| Desktop — trip result | Mobile |
+|---|---|
+| <img src="docs/screenshots/trip.png" alt="Desktop trip view: slide-in panel with the agent's briefing, Route A recommended with 9 reports vs Route B's 13, a 'What the agent did' audit section, and both routes drawn on the map with pothole markers" width="560"> | <img src="docs/screenshots/mobile.png" alt="Mobile view: full-height map with the 'Where to?' pill, citywide pothole dots, landmark chips, and a live count of 1,223 open reports in view" width="240"> |
 
 ## Why
 
@@ -27,6 +69,9 @@ Residents, journalists, and council staff should be able to find that out by ask
 ## How it works
 
 ```
+        map-first UI (Leaflet + Flask)              pothole_agent/webapp.py, static/
+        citywide pothole layer · "Where to?" pill · landmark chips
+                |
 "Temple University" -> "Citizens Bank Park"
         |
    trip agent (Claude + tools)                      pothole_agent/trip.py
@@ -36,7 +81,8 @@ Residents, journalists, and council staff should be able to find that out by ask
         |                     'Street Defect' reports within 30 m of the route
         +-- recommend_route   records the choice as structured output
         |
-   map UI (Flask + Leaflet)                         pothole_agent/webapp.py
+   agent steps stream back live (SSE) -> slide-in panel / bottom sheet
+        route signs · briefing · "What the agent did" audit · ask-the-analyst box
 ```
 
 The agent decides which tools to call and in what order, weighs pothole count,
@@ -58,6 +104,8 @@ streams this agent's steps live and shows every SQL query it runs.
 - **Geofence**: every coordinate must fall inside a Philadelphia bounding box.
 - **Browser safety**: API data is inserted with `textContent`, never parsed as
   HTML; CDN assets are pinned with Subresource Integrity hashes.
+- **Rate limiting**: per-IP and global rate limits on the public deployment's
+  agent endpoints.
 - **Honest framing**: markers are resident reports, not verified potholes, and
   the UI says so.
 - **Read-only SQL guardrail** (`pothole_agent/guardrails.py`): the model's SQL is
@@ -92,12 +140,12 @@ python -m pothole_agent.cli "Which zip codes wait longest for abandoned car remo
 pytest -q
 ```
 
-## Data source
+## Data sources
 
 [OpenDataPhilly 311 Service and Information Requests](https://opendataphilly.org/datasets/311-service-and-information-requests/),
 queried live through the city's public Carto SQL API. No API key is required for the data.
 Geocoding: US Census Geocoder and OpenStreetMap Nominatim. Routing: the public OSRM
-demo server (fine for a demo; self-host OSRM for real traffic). Map tiles: OpenStreetMap.
+demo server (fine for a demo; self-host OSRM for real traffic). Map tiles: Esri World Street Map.
 
 ## Tools used
 
