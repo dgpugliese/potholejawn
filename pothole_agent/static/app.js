@@ -118,6 +118,7 @@
       case "tool_error": return "Error from " + event.tool + ": " + event.preview;
       case "usage": return null;
       case "agent_unavailable": return "Agent unavailable (" + event.detail + "). Used the built-in planner instead.";
+      case "fallback": return event.text;
       case "final": return "Finished in " + event.steps + " model turns.";
       default: return null;
     }
@@ -153,24 +154,45 @@
     selectRoute(data.recommended);
   }
 
-  form.addEventListener("submit", async function (event) {
+  form.addEventListener("submit", function (event) {
     event.preventDefault();
     button.disabled = true;
-    setStatus("Looking up addresses, routes, and open pothole reports. This can take 20 seconds.");
-    try {
-      const response = await fetch("/api/trip", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ start: form.start.value, end: form.end.value }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Something went wrong.");
-      setStatus("");
-      render(data);
-    } catch (error) {
-      setStatus(error.message, true);
-    } finally {
+    setStatus("Looking up addresses, routes, and open pothole reports.");
+    results.hidden = true;
+    const live = document.getElementById("live");
+    const liveList = document.getElementById("live-steps");
+    liveList.replaceChildren();
+    live.hidden = false;
+
+    const source = new EventSource(
+      "/api/trip/stream?start=" + encodeURIComponent(form.start.value) +
+      "&end=" + encodeURIComponent(form.end.value)
+    );
+    function finish() {
+      source.close();
+      live.hidden = true;
       button.disabled = false;
     }
+    source.addEventListener("step", function (e) {
+      const step = JSON.parse(e.data);
+      const text = describeStep(step);
+      if (text) {
+        liveList.append(el("li", step.type === "tool_error" ? "error" : "", text));
+        liveList.lastChild.scrollIntoView({ block: "nearest" });
+      }
+    });
+    source.addEventListener("result", function (e) {
+      finish();
+      setStatus("");
+      render(JSON.parse(e.data));
+    });
+    source.addEventListener("trip_error", function (e) {
+      finish();
+      setStatus(JSON.parse(e.data).error || "Something went wrong.", true);
+    });
+    source.onerror = function () { // connection-level failure (e.g. bad input, server down)
+      finish();
+      setStatus("Could not plan the trip. Check the addresses and try again.", true);
+    };
   });
 })();
