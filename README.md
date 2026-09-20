@@ -6,12 +6,12 @@
 
 **An AI agent that scans Philadelphia's live 311 data — 5.9 million rows — to route you around the potholes.**
 
-[![tests](https://img.shields.io/badge/tests-40%20passing-brightgreen)](tests)
+[![tests](https://img.shields.io/badge/tests-42%20passing-brightgreen)](tests)
 [![python](https://img.shields.io/badge/python-3.12-blue)](pyproject.toml)
 [![license](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
 [![live](https://img.shields.io/badge/live-potholejawn.com-f5c518)](https://potholejawn.com)
 
-<img src="docs/screenshots/home.png" alt="Full-viewport map of Philadelphia with 1,500+ live open pothole reports as yellow dots, a floating 'Where to?' search pill, and clickable emoji landmark chips" width="850">
+<img src="docs/screenshots/home.png" alt="Full-viewport map of Philadelphia with 1,500+ live open pothole reports as yellow dots, a floating 'Where to?' search pill," width="850">
 
 *Every yellow dot is an open 311 pothole report, live from the city — 1,500+ in view before you type anything.*
 
@@ -30,7 +30,7 @@ Live at **[potholejawn.com](https://potholejawn.com)** (also [potholejawn.app](h
 
 - The map opens on **every open pothole report in Philly right now**, plotted citywide and clickable.
 - Type a destination into the **"Where to?" pill** — try `Citizens Bank Park` from `Temple University`. Real result from live data: same 17-minute drive, one route passes 9 open pothole reports, the other 13.
-- Or skip typing: tap a **landmark chip** (Liberty Bell, the Rocky steps, the Pennovation Center 🚀 — where this was built) and hit **From here** / **To here**.
+- Or barely type: the search **autocompletes real Philly places** (Liberty Bell, Reading Terminal, the Pennovation Center — where this was built), and 📍 routes from your actual location.
 - After a trip, open **"What the agent did"** for the full audit trail, or ask the **311 analyst** an open-ended question ("where is the city slowest at fixing potholes?") right in the panel.
 
 ## Features
@@ -49,14 +49,14 @@ Both agents share one generic tool loop.
 
 **Map-first UI** — full-viewport map with a floating "Where to?" search pill, a
 slide-in results panel on desktop and a bottom sheet on mobile, a citywide layer
-of every open pothole report, clickable landmark chips, route signs (A/B with
+of every open pothole report, route signs (A/B with
 report counts), the brand emblem as a map watermark, and PWA install support.
 
 ## Screenshots
 
 | Desktop — trip result | Mobile |
 |---|---|
-| <img src="docs/screenshots/trip.png" alt="Desktop trip view: slide-in panel with the agent's briefing, Route A recommended with 9 reports vs Route B's 13, a 'What the agent did' audit section, and both routes drawn on the map with pothole markers" width="560"> | <img src="docs/screenshots/mobile.png" alt="Mobile view: full-height map with the 'Where to?' pill, citywide pothole dots, landmark chips, and a live count of 1,223 open reports in view" width="240"> |
+| <img src="docs/screenshots/trip.png" alt="Desktop trip view: slide-in panel with the agent's briefing, Route A recommended with 9 reports vs Route B's 13, a 'What the agent did' audit section, and both routes drawn on the map with pothole markers" width="560"> | <img src="docs/screenshots/mobile.png" alt="Mobile view: full-height map with the 'Where to?' pill, citywide pothole dots, and a live count of 1,223 open reports in view" width="240"> |
 
 ## Why
 
@@ -70,7 +70,7 @@ Residents, journalists, and council staff should be able to find that out by ask
 
 ```
         map-first UI (Leaflet + Flask)              pothole_agent/webapp.py, static/
-        citywide pothole layer · "Where to?" pill · landmark chips
+        citywide pothole layer · "Where to?" pill · autocomplete
                 |
 "Temple University" -> "Citizens Bank Park"
         |
@@ -106,6 +106,9 @@ streams this agent's steps live and shows every SQL query it runs.
   HTML; CDN assets are pinned with Subresource Integrity hashes.
 - **Rate limiting**: per-IP and global rate limits on the public deployment's
   agent endpoints.
+- **Cost engineering**: Anthropic prompt caching on the agent loop (later steps
+  read the prompt prefix from cache at ~10% price) plus a one-hour trip-result
+  cache for repeated routes.
 - **Honest framing**: markers are resident reports, not verified potholes, and
   the UI says so.
 - **Read-only SQL guardrail** (`pothole_agent/guardrails.py`): the model's SQL is

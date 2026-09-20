@@ -6,10 +6,10 @@ One continuous screen recording, one browser window — everything happens in th
 
 - [ ] `ANTHROPIC_API_KEY` set in `.env`; server running: `python -m pothole_agent.webapp`; tunnel to potholejawn.com up if demoing the live site
 - [ ] **Hard refresh** the browser (Cmd+Shift+R) so the latest UI and service worker are loaded
-- [ ] **Panel closed**, map at **zoom ~12 centered on Philly** — citywide dots and landmark chips visible, "open pothole reports in view" counter showing
+- [ ] **Panel closed**, map at **zoom ~12 centered on Philly** — citywide dots visible, "open pothole reports in view" counter showing
 - [ ] Browser **zoom 125–150%** so text is legible in the recording
 - [ ] Do one throwaway trip first (warms geocoder/OSRM caches and confirms the agent path works — briefing should NOT say fallback), then close the panel and reset the view
-- [ ] Trip to run, exactly: destination `Citizens Bank Park` in the pill; start via the Pennovation Center 🚀 chip → "From here" (or type `Temple University` — verified: route A 9 open reports, route B 13, ~17 min drive)
+- [ ] Trip to run, exactly: destination `Citizens Bank Park` in the pill (pick it from the autocomplete dropdown); start `Temple University` via autocomplete — verified: route A 9 open reports, route B 13, ~17 min drive
 - [ ] Analyst question ready to paste into the panel's "Ask the analyst" box: `Which zip codes wait longest for pothole repairs?`
 - [ ] Close notifications / other tabs; hide bookmarks bar
 - [ ] Timer visible to yourself, not on screen
@@ -18,15 +18,15 @@ One continuous screen recording, one browser window — everything happens in th
 
 ### 0:00 – 0:15 — Hook
 
-Open on the full-map view: citywide dots, landmark chips, the "Where to?" pill.
+Open on the full-map view: citywide dots, the emblem watermark, the "Where to?" pill.
 
 > "This is potholejawn — potholejawn dot com. Every yellow dot is an open pothole report in Philadelphia right now — over fifteen hundred, live from the city's 311 data, five point nine million rows since 2014. This agent uses that data to route you around them. Watch."
 
 ### 0:15 – 0:35 — Start the trip
 
-Type `Citizens Bank Park` into the pill; the panel slides in. Then click the Pennovation Center 🚀 landmark chip and hit **From here** (or type `Temple University` as the start).
+Start typing `Citizens` into the pill and pick **Citizens Bank Park** from the autocomplete dropdown; the panel slides in. Start typing `Temple` in the start field and pick **Temple University** (or hit the 📍 button to use your real location).
 
-> "I type where I'm going into the pill — Citizens Bank Park. And for where I am, I don't even have to type: tap a landmark — the Pennovation Center, where this was built — and 'From here'. That's it. The agent figures out the rest."
+> "I start typing where I'm going — the app suggests real Philly places as I type, Citizens Bank Park. Where I'm starting — Temple University, or one tap to use my actual location. That's it. The agent figures out the rest."
 
 ### 0:35 – 1:10 — Live agent steps (SSE)
 

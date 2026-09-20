@@ -21,7 +21,7 @@ Philadelphia publishes every 311 request since 2014 — about 5.9 million rows o
 
 Real example from live data: Temple University to Citizens Bank Park. Same 17-minute drive; one route passes 9 open pothole reports, the other 13.
 
-Before you even plan a trip, the map lights up with **every open pothole report in view** — 1,500+ across the city, live from 311, each clickable. Tap a Philly landmark chip (Liberty Bell, the Rocky steps, Pennovation Center — where this was built) and hit "From here" / "To here" to start a route without typing. It's live at **potholejawn.com**, installable to a phone home screen as a PWA, in a map-first UI modeled on the navigation apps everyone already knows.
+Before you even plan a trip, the map lights up with **every open pothole report in view** — 1,500+ across the city, live from 311, each clickable. Start typing and it autocompletes real Philly places — landmarks like the Liberty Bell or the Pennovation Center (where this was built) — or tap 📍 to route from your actual location. It's live at **potholejawn.com**, installable to a phone home screen as a PWA, in a map-first UI modeled on the navigation apps everyone already knows.
 
 The repo also ships a second agent — a 311 **accountability analyst** — that answers open-ended questions ("where is the city slowest at fixing potholes?") right in the app or from the CLI by writing its own SQL, running it through a guardrail validator, reading errors, and retrying until it has an answer. Both agents share one generic tool loop.
 
@@ -32,7 +32,8 @@ The repo also ships a second agent — a 311 **accountability analyst** — that
 - **Analyst agent** (`agent.py` + `tools.py`): `get_schema`, `list_categories`, `run_sql`. It's told to state a plan, query in focused steps, and never state a number it didn't get from a query.
 - **Data layer** (`routing.py`): US Census geocoder for street addresses with OpenStreetMap Nominatim fallback for landmarks (neither alone covers Philly well), OSRM for routes, and a PostGIS `ST_DWithin` query against the city's public Carto SQL API for potholes along a route buffer.
 - **UI** (`webapp.py` + Leaflet): Flask serving a static map. Agent steps stream to the browser live over Server-Sent Events, so you watch the agent think — geocode, route, scan, recommend — instead of staring at a spinner. A "What the agent did" panel shows the full audit trail including token usage.
-- **Tests**: 40 pytest tests running against a fake model client — no API key or network needed for CI.
+- **Cost engineering**: Anthropic prompt caching on the agent loop (steps 2+ read the prompt prefix from cache at ~10% price) plus a one-hour trip-result cache, and per-IP + global rate limiting on the public deployment.
+- **Tests**: 42 pytest tests running against a fake model client — no API key or network needed for CI.
 
 ## Challenges we ran into
 
@@ -48,7 +49,7 @@ The repo also ships a second agent — a 311 **accountability analyst** — that
 - **The demo cannot die.** If the API key is missing or the model call fails, a plain-Python fallback planner produces the same map with a simpler briefing — same result shape, honest `mode` flag. If the agent skips a route, the deterministic pass scans it anyway.
 - **Defense in depth for a one-day hack**: SQL guardrails, a route-SQL path the model never touches (built in `routing.py` from validated numbers only, buffer clamped 10–100 m), a Philadelphia bounding-box geofence on every coordinate, `textContent`-only DOM insertion, Subresource Integrity pins on CDN assets, a step limit, per-IP and global rate limiting on the public deployment, and a full JSONL audit trail.
 - **Honest framing baked in**: markers are labeled resident *reports*, not verified potholes; the analyst is instructed to report open-case share next to any time-to-close figure and to never confuse "more reports" with "more potholes."
-- 40 tests, pinned dependencies, zero lint findings, zero known-CVE dependencies — built solo in one day.
+- 42 tests, pinned dependencies, zero lint findings, zero known-CVE dependencies — built solo in one day.
 
 ## What we learned
 
