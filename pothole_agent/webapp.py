@@ -212,6 +212,7 @@ def create_app() -> Flask:
                         client=client,
                         on_event=lambda e: events.put(("step", e)),
                         run_dir=RUN_DIR,
+                        plain_text=True,
                     )
                     events.put(("result", {"answer": answer}))
                 except Exception:  # never leak internals to the browser

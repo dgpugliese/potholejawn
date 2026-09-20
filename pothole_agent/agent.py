@@ -68,16 +68,27 @@ def execute_tool(
     return text, False
 
 
+PLAIN_TEXT_SUFFIX = (
+    "\n\nYour final report is shown on a plain-text web page: do not use any "
+    "markdown syntax (no #, **, backticks, or tables). Use short paragraphs "
+    "and simple lines starting with '-' for lists."
+)
+
+
 def investigate(
     question: str,
     client: Any = None,
     on_event: Logger | None = None,
     run_dir: Path | str = "runs",
+    plain_text: bool = False,
 ) -> str:
     """Run a full 311 data investigation and return the final report text."""
+    system_prompt = SYSTEM_PROMPT.format(today=date.today().isoformat())
+    if plain_text:
+        system_prompt += PLAIN_TEXT_SUFFIX
     return run_agent(
         question,
-        system_prompt=SYSTEM_PROMPT.format(today=date.today().isoformat()),
+        system_prompt=system_prompt,
         tool_specs=TOOL_SPECS,
         tool_functions=TOOL_FUNCTIONS,
         client=client,
