@@ -589,8 +589,10 @@ footer a:hover { color: var(--sign-green); }
     transform: none;
   }
 
-  /* keep the zoom control clear of the pill */
+  /* keep the zoom control clear of the pill, and the citywide badge clear
+     of the wrapped attribution line */
   .leaflet-top.leaflet-left { top: 74px; }
+  .leaflet-bottom.leaflet-left { bottom: 46px; }
 
   .panel {
     top: auto;
