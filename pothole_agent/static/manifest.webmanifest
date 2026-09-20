@@ -1,0 +1,17 @@
+{
+  "name": "potholejawn",
+  "short_name": "potholejawn",
+  "description": "Pick the Philly route with fewer reported potholes.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f7f6f2",
+  "theme_color": "#26282b",
+  "icons": [
+    {
+      "src": "/static/icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
