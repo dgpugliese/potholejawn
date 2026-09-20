@@ -15,6 +15,94 @@
   ).addTo(map);
 
   const layers = L.layerGroup().addTo(map);
+
+  // ---- Citywide open-report layer -------------------------------------------
+  // Before a trip is planned, show every open pothole report in view as quiet
+  // dots on a canvas renderer. Hidden while a trip result is on screen so the
+  // routes stay the hero.
+  const CITYWIDE_MIN_ZOOM = 12;
+  const CITYWIDE_DEBOUNCE_MS = 400;
+  const citywideRenderer = L.canvas({ padding: 0.4 });
+  const citywideLayer = L.layerGroup().addTo(map);
+  const citywideBadge = document.createElement("div");
+  citywideBadge.className = "citywide-badge";
+  citywideBadge.hidden = true;
+  const CitywideBadge = L.Control.extend({ onAdd: () => citywideBadge });
+  new CitywideBadge({ position: "bottomleft" }).addTo(map);
+  let citywideVisible = true;
+  let citywideSeq = 0; // ignores out-of-order fetch responses
+  let citywideTimer = null;
+
+  function fetchCitywide() {
+    if (!citywideVisible) return;
+    if (map.getZoom() < CITYWIDE_MIN_ZOOM) {
+      citywideSeq += 1;
+      citywideLayer.clearLayers();
+      citywideBadge.hidden = true;
+      return;
+    }
+    const b = map.getBounds();
+    const bbox = [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()]
+      .map((v) => v.toFixed(5))
+      .join(",");
+    citywideSeq += 1;
+    const seq = citywideSeq;
+    fetch("/api/potholes?bbox=" + encodeURIComponent(bbox))
+      .then((r) => {
+        if (!r.ok) throw new Error("potholes fetch failed: " + r.status);
+        return r.json();
+      })
+      .then((data) => {
+        if (seq !== citywideSeq || !citywideVisible) return; // a newer fetch or a trip took over
+        citywideLayer.clearLayers();
+        data.potholes.forEach(function (p) {
+          const dot = L.circleMarker([p.lat, p.lon], {
+            renderer: citywideRenderer,
+            radius: 3.5,
+            weight: 1,
+            color: "#26282b",
+            opacity: 0.55,
+            fillColor: "#ffcc00",
+            fillOpacity: 0.5,
+          }).addTo(citywideLayer);
+          const popup = el("div");
+          popup.append(
+            el("strong", "", p.address),
+            el("br"),
+            document.createTextNode("Reported " + p.reported + " (" + ageLabel(p.days_open) + ")")
+          );
+          dot.bindPopup(popup);
+        });
+        const n = data.potholes.length;
+        citywideBadge.textContent =
+          n.toLocaleString() + " open pothole report" + (n === 1 ? "" : "s") + " in view";
+        citywideBadge.hidden = false;
+      })
+      .catch(function () { /* keep the last good dots; the map stays usable */ });
+  }
+
+  function hideCitywide() {
+    citywideVisible = false;
+    citywideSeq += 1; // cancel any in-flight fetch
+    map.removeLayer(citywideLayer);
+    citywideBadge.hidden = true;
+  }
+
+  function showCitywide() {
+    if (!citywideVisible) {
+      citywideVisible = true;
+      citywideLayer.addTo(map);
+    }
+    fetchCitywide();
+  }
+
+  map.on("moveend", function () {
+    clearTimeout(citywideTimer);
+    citywideTimer = setTimeout(fetchCitywide, CITYWIDE_DEBOUNCE_MS);
+  });
+  fetchCitywide(); // populate the map on first load, before any trip is planned
+  // ---------------------------------------------------------------------------
+
   const form = document.getElementById("trip-form");
   const button = document.getElementById("go");
   const statusEl = document.getElementById("status");
@@ -160,6 +248,7 @@
     briefing.append(el("span", "mode", data.mode === "agent" ? "Written by the AI agent from the data below." : "Built-in planner (AI agent not used)."));
     drawSteps();
     results.hidden = false;
+    hideCitywide(); // trip results are the hero; the citywide dots would be noise
     selectRoute(data.recommended);
   }
 
@@ -168,6 +257,7 @@
     button.disabled = true;
     setStatus("Looking up addresses, routes, and open pothole reports.");
     results.hidden = true;
+    showCitywide(); // a new search starts fresh: bring back the citywide dots
     const live = document.getElementById("live");
     const liveList = document.getElementById("live-steps");
     liveList.replaceChildren();
