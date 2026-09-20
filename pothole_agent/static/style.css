@@ -28,6 +28,10 @@
 
 * { box-sizing: border-box; }
 
+/* No display rule anywhere (form's grid, #results' mobile flex, ...) may
+   defeat the hidden attribute app.js toggles. */
+[hidden] { display: none !important; }
+
 html, body { height: 100%; margin: 0; }
 
 body {
@@ -296,8 +300,7 @@ h2 {
   margin: var(--space-5) 0 var(--space-2);
 }
 
-form { display: grid; gap: var(--space-1); }
-form[hidden] { display: none; } /* the display:grid above must not defeat [hidden] */
+form { display: grid; gap: var(--space-1); } /* [hidden] guard is global, at the top */
 
 label { font-weight: 600; font-size: 0.85rem; margin-top: var(--space-2); color: var(--asphalt-soft); }
 
@@ -773,8 +776,8 @@ footer a:hover { color: var(--sign-green); }
 }
 
 /* ---- Mobile: bottom sheet (Waze / Google Maps pattern) --------------------- */
-/* Three snap states — peek (handle + masthead strip), half (map + routes both
-   visible), full (reading/typing) — driven by .sheet-peek/.sheet-half/
+/* Three snap states — peek (handle + trip-summary strip), half (map + routes
+   both visible), full (reading/typing) — driven by .sheet-peek/.sheet-half/
    .sheet-full from app.js, with a real touch drag on the handle. */
 @media (max-width: 768px) {
   .map-watermark { width: 200px; }
@@ -877,7 +880,12 @@ footer a:hover { color: var(--sign-green); }
 
   /* No scroll-trap at peek: the strip is a grab surface, not a viewport, and
      its content fades out so the summary strip reads as the minimized face. */
-  .panel.sheet-peek .panel-scroll { overflow-y: hidden; opacity: 0; transition: opacity 150ms ease; }
+  .panel.sheet-peek .panel-scroll {
+    overflow-y: hidden;
+    opacity: 0;
+    pointer-events: none; /* faded-out controls must not stay tappable */
+    transition: opacity 150ms ease;
+  }
 
   /* Content fades in as the sheet expands out of peek. Toggling between half
      and full computes the same animation value, so it never restarts mid-drag. */
@@ -885,8 +893,18 @@ footer a:hover { color: var(--sign-green); }
   .panel.sheet-full .panel-scroll { animation: sheet-content-in 220ms ease both; }
 
   /* The pill already brands the app on mobile — the masthead is desktop
-     furniture that pushed real content below the fold. */
-  .masthead { display: none; }
+     furniture that pushed real content below the fold. Visually hidden (not
+     display:none) so the page keeps its h1 for screen readers. */
+  .masthead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
   .mode-switch { margin-top: var(--space-3); }
 
   /* 16px inputs so iOS Safari never zooms the page on focus. */
@@ -916,15 +934,12 @@ footer a:hover { color: var(--sign-green); }
   /* Autocomplete dropdown never overflows a small viewport. */
   .ac-list { max-width: calc(100vw - 16px); max-height: 38vh; }
 
-  /* ---- Mobile results order: answer first, evidence after -------------------
-     Route signs top, then the briefing, then the collapsed agent log, then the
-     collapsed pothole list. Pure visual order — the DOM (and desktop) is
-     untouched. */
+  /* ---- Mobile results spacing. The answer-first order (routes, briefing,
+     agent log, pothole list) now lives in the DOM itself so focus and
+     screen-reader order match the visual order — no flex `order` here. */
   #results { display: flex; flex-direction: column; min-width: 0; }
-  #results .routes { order: 1; margin-top: var(--space-3); }
-  #results .briefing { order: 2; }
-  #results #activity { order: 3; margin-top: var(--space-4); }
-  #results .list-disclosure { order: 4; }
+  #results .routes { margin-top: var(--space-3); }
+  #results #activity { margin-top: var(--space-4); }
 
   /* Pothole list collapses under a "9 reports along Route A" disclosure. */
   .list-disclosure,
