@@ -183,11 +183,21 @@ def plan_trip(
     use_agent: bool = True,
     client: Any = None,
     run_dir: str = "runs",
+    on_step: Callable[[dict[str, Any]], None] | None = None,
 ) -> dict[str, Any]:
-    """Plan a trip. Returns routes, potholes, a recommendation, and the agent's steps."""
+    """Plan a trip. Returns routes, potholes, a recommendation, and the agent's steps.
+
+    ``on_step`` (optional) is called with each step event as it happens, so a
+    caller can stream progress to a UI while the run is still in flight.
+    """
     context = TripContext()
     steps: list[dict[str, Any]] = []
     briefing, mode = "", "fallback"
+
+    def record(event: dict[str, Any]) -> None:
+        steps.append(event)
+        if on_step:
+            on_step(event)
 
     if use_agent:
         try:
@@ -197,22 +207,32 @@ def plan_trip(
                 tool_specs=TRIP_TOOL_SPECS,
                 tool_functions=context.tool_functions(),
                 client=client,
-                on_event=steps.append,
+                on_event=record,
                 run_dir=run_dir,
             )
             mode = "agent"
         except RoutingError:
             raise
         except Exception as error:  # no key, network trouble, model error: degrade gracefully
-            steps.append({"type": "agent_unavailable", "detail": f"{type(error).__name__}: {error}"})
+            record({"type": "agent_unavailable", "detail": f"{type(error).__name__}: {error}"})
 
     if not context.routes:  # agent did not get far enough, or was skipped
+        record({"type": "fallback", "text": f"Looking up '{start}' and '{end}'."})
         first = context.places.get("start") or context.geocode_address(start, "start")
         last = context.places.get("end") or context.geocode_address(end, "end")
+        record({"type": "fallback", "text": "Fetching driving routes between the two points."})
         context.find_routes(first["lat"], first["lon"], last["lat"], last["lon"])
+        record(
+            {
+                "type": "fallback",
+                "text": f"Scanning {len(context.routes)} route(s) for open pothole reports.",
+            }
+        )
         mode = "fallback"
 
     context.ensure_complete()
     if mode == "fallback" or not briefing.strip():
         briefing = fallback_briefing(context)
+    if mode == "fallback":
+        record({"type": "fallback", "text": f"Picked route {context.recommended}: {context.reason}"})
     return {**context.to_dict(), "briefing": briefing, "mode": mode, "steps": steps}

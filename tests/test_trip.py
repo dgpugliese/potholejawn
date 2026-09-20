@@ -112,6 +112,56 @@ def test_api_validates_input():
     assert client.get("/healthz").get_json()["ok"] is True
 
 
+def test_plan_trip_streams_steps_live(fake_services):
+    seen = []
+    result = trip.plan_trip("City Hall", "Stadium", use_agent=False, on_step=seen.append)
+    assert seen == result["steps"], "on_step should see every recorded step, in order"
+    assert seen, "the fallback planner should narrate its steps"
+    assert seen[0]["type"] == "fallback"
+    assert any("Picked route B" in step.get("text", "") for step in seen)
+
+
+def _sse_events(body):
+    """Parse an SSE body into (event_name, payload) pairs."""
+    import json as _json
+
+    events = []
+    for chunk in body.strip().split("\n\n"):
+        lines = dict(line.split(": ", 1) for line in chunk.splitlines())
+        events.append((lines["event"], _json.loads(lines["data"])))
+    return events
+
+
+def test_stream_endpoint_emits_steps_then_result(fake_services, monkeypatch):
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    client = create_app().test_client()
+    response = client.get("/api/trip/stream?start=City%20Hall&end=Stadium")
+    assert response.status_code == 200
+    assert response.headers["Content-Type"].startswith("text/event-stream")
+    events = _sse_events(response.get_data(as_text=True))
+    names = [name for name, _ in events]
+    assert names[-1] == "result" and names.count("result") == 1
+    assert names.count("step") >= 2, "steps should stream before the result"
+    result = events[-1][1]
+    assert result["recommended"] == "B" and result["mode"] == "fallback"
+
+
+def test_stream_endpoint_validates_input():
+    client = create_app().test_client()
+    assert client.get("/api/trip/stream?start=&end=x").status_code == 400
+    assert client.get("/api/trip/stream?start=" + "a" * 500 + "&end=x").status_code == 400
+
+
+def test_stream_endpoint_reports_routing_errors(fake_services, monkeypatch):
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.setattr(trip, "geocode", lambda address: (_ for _ in ()).throw(RoutingError("no match")))
+    client = create_app().test_client()
+    response = client.get("/api/trip/stream?start=Nowhere&end=Stadium")
+    events = _sse_events(response.get_data(as_text=True))
+    assert events[-1][0] == "trip_error"
+    assert "no match" in events[-1][1]["error"]
+
+
 def test_api_returns_trip(fake_services, monkeypatch):
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     response = create_app().test_client().post("/api/trip", json={"start": "City Hall", "end": "Stadium"})
