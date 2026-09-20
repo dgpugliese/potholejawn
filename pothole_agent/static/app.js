@@ -102,13 +102,13 @@
   function fitPadding() {
     const mobile = mobileMq.matches;
     if (mobile) {
-      let sheet = 40;
+      let sheet = 100; // clears the bottom search pill when the sheet is closed
       if (panelOpen) {
         // At peek only the strip covers the map; at half or full assume the
         // half height — routes are typically viewed with the sheet at half.
         sheet = sheetState === "peek" ? 148 : Math.round(window.innerHeight * 0.55) + 16;
       }
-      return { paddingTopLeft: [24, 92], paddingBottomRight: [24, sheet] };
+      return { paddingTopLeft: [24, 24], paddingBottomRight: [24, sheet] };
     }
     return { paddingTopLeft: [panelOpen ? 380 + 40 : 40, 84], paddingBottomRight: [40, 40] };
   }
@@ -125,7 +125,14 @@
   citywideBadge.className = "citywide-badge";
   citywideBadge.hidden = true;
   const CitywideBadge = L.Control.extend({ onAdd: () => citywideBadge });
-  new CitywideBadge({ position: "bottomleft" }).addTo(map);
+  // Bottom-left on desktop; on mobile the bottom edge belongs to the search
+  // pill, so the badge docks top-left under the zoom control instead.
+  const citywideControl = new CitywideBadge({
+    position: mobileMq.matches ? "topleft" : "bottomleft",
+  }).addTo(map);
+  mobileMq.addEventListener("change", function () {
+    citywideControl.setPosition(mobileMq.matches ? "topleft" : "bottomleft");
+  });
   let citywideVisible = true;
   let citywideSeq = 0; // ignores out-of-order fetch responses
   let citywideTimer = null;
@@ -249,6 +256,23 @@
     },
   });
   attachAutocomplete(form.end, {});
+
+  // Mobile keyboard handling for the bottom pill: fixed elements anchor to
+  // the layout viewport, which the keyboard covers, so translate the pill up
+  // by the keyboard's overlap (visualViewport height + pan offset) and let
+  // each autocomplete's own visualViewport listeners re-anchor the dropdown.
+  if (window.visualViewport) {
+    const vv = window.visualViewport;
+    function liftPill() {
+      if (!mobileMq.matches) { pillForm.style.transform = ""; return; }
+      const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      pillForm.style.transform = inset
+        ? "translateX(-50%) translateY(-" + Math.round(inset) + "px)"
+        : "";
+    }
+    vv.addEventListener("resize", liftPill);
+    vv.addEventListener("scroll", liftPill);
+  }
 
   document.getElementById("use-location").addEventListener("click", function () {
     requestLocation(
@@ -532,8 +556,17 @@
     function position() {
       const r = input.getBoundingClientRect();
       box.style.left = r.left + "px";
-      box.style.top = r.bottom + 4 + "px";
       box.style.width = r.width + "px";
+      if (input === pillInput && mobileMq.matches) {
+        // The pill rides the bottom edge on mobile, so the list opens UPWARD,
+        // anchored above the whole pill — it tracks the pill through keyboard
+        // lifts because both use the same layout-viewport coordinates.
+        box.style.top = "auto";
+        box.style.bottom = window.innerHeight - pillForm.getBoundingClientRect().top + 8 + "px";
+      } else {
+        box.style.bottom = "auto";
+        box.style.top = r.bottom + 4 + "px";
+      }
     }
 
     function close() {
