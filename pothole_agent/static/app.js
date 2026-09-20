@@ -58,6 +58,7 @@
 
   // ---- Floating pill + slide-in panel ---------------------------------------
   const panel = document.getElementById("panel");
+  const panelTab = document.getElementById("panel-tab");
   let panelOpen = false;
 
   function openPanel() {
@@ -65,6 +66,7 @@
     if (panelOpen) return;
     panelOpen = true;
     document.body.classList.add("panel-open");
+    panelTab.setAttribute("aria-label", "Close trip panel");
     setTimeout(function () { map.invalidateSize(); }, 320);
   }
 
@@ -72,8 +74,11 @@
     if (!panelOpen) return;
     panelOpen = false;
     document.body.classList.remove("panel-open");
+    panelTab.setAttribute("aria-label", "Open trip panel");
     setTimeout(function () { map.invalidateSize(); }, 320);
   }
+
+  function togglePanel() { if (panelOpen) closePanel(); else openPanel(); }
 
   // Padding for fitBounds so routes are not hidden under the open panel,
   // the pill, or the mobile bottom sheet.
@@ -231,8 +236,7 @@
     );
   });
 
-  document.getElementById("panel-tab").addEventListener("click", openPanel);
-  document.getElementById("panel-close").addEventListener("click", closePanel);
+  panelTab.addEventListener("click", togglePanel);
   document.getElementById("sheet-handle").addEventListener("click", function () {
     panel.classList.toggle("collapsed"); // mobile bottom sheet: tap to expand/collapse
   });
@@ -240,6 +244,32 @@
     if (event.key === "Escape" && panelOpen && !document.querySelector(".leaflet-popup")) {
       closePanel();
     }
+  });
+
+  // ---- Trip / Ask mode switch ------------------------------------------------
+  // One panel, one segmented control — "Ask 311 data" is a mode of the same
+  // tool rather than a second, visually separate app stacked underneath.
+  const modeTabs = [document.getElementById("tab-trip"), document.getElementById("tab-ask")];
+  const modePanels = { "tab-trip": document.getElementById("mode-trip"), "tab-ask": document.getElementById("mode-ask") };
+
+  function setMode(tab) {
+    modeTabs.forEach(function (t) {
+      const active = t === tab;
+      t.setAttribute("aria-selected", String(active));
+      t.tabIndex = active ? 0 : -1;
+      modePanels[t.id].hidden = !active;
+    });
+    tab.focus();
+  }
+
+  modeTabs.forEach(function (tab, i) {
+    tab.addEventListener("click", function () { setMode(tab); });
+    tab.addEventListener("keydown", function (event) {
+      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+      event.preventDefault();
+      const next = modeTabs[(i + (event.key === "ArrowRight" ? 1 : modeTabs.length - 1)) % modeTabs.length];
+      setMode(next);
+    });
   });
 
   let trip = null;
@@ -384,6 +414,7 @@
     let active = -1;
     let seq = 0;
     let timer = null;
+    let loading = false;
 
     function position() {
       const r = input.getBoundingClientRect();
@@ -394,16 +425,20 @@
 
     function close() {
       box.hidden = true;
+      box.classList.remove("ac-open");
       items = [];
       active = -1;
+      loading = false;
       seq += 1; // ignore any in-flight Photon response
       clearTimeout(timer);
     }
 
     function renderList() {
+      const wasHidden = box.hidden;
       box.replaceChildren();
-      if (!items.length) {
+      if (!items.length && !loading) {
         box.hidden = true;
+        box.classList.remove("ac-open");
         return;
       }
       items.forEach(function (item, i) {
@@ -419,8 +454,19 @@
         });
         box.append(row);
       });
+      // A quiet trailing row while Photon results are still in flight — the
+      // list itself (landmarks/geolocate) is already live, this just signals
+      // more may be on the way instead of leaving typing feeling unanswered.
+      if (loading) box.append(el("div", "ac-loading", "Searching Philly…"));
       position();
       box.hidden = false;
+      if (wasHidden) {
+        // Animate the open, not every keystroke's re-render, so results
+        // updating mid-type never interrupts or restarts a running transition.
+        box.classList.remove("ac-open");
+        void box.offsetWidth; // restart the entrance animation
+        box.classList.add("ac-open");
+      }
     }
 
     function pick(item) {
@@ -462,16 +508,18 @@
       if (q) list = list.concat(localMatches(q));
       items = list;
       active = -1;
-      renderList();
       clearTimeout(timer);
       seq += 1;
-      if (q.length < AC_MIN_REMOTE) return;
+      loading = q.length >= AC_MIN_REMOTE;
+      renderList();
+      if (!loading) return;
       const mySeq = seq;
       timer = setTimeout(function () {
         fetch(PHOTON_URL + encodeURIComponent(q))
           .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error("photon " + r.status)); })
           .then(function (data) {
             if (mySeq !== seq || document.activeElement !== input) return;
+            loading = false;
             const seen = {};
             items.forEach(function (i) { seen[i.label + "|" + (i.sub || "")] = true; });
             (data.features || []).forEach(function (f) {
@@ -505,7 +553,11 @@
             });
             renderList();
           })
-          .catch(function () { /* landmarks-only is still a working autocomplete */ });
+          .catch(function () {
+            if (mySeq !== seq) return;
+            loading = false;
+            renderList(); // landmarks-only is still a working autocomplete
+          });
       }, AC_DEBOUNCE_MS);
     }
 

@@ -45,52 +45,58 @@
         <img src="/static/logo.png" alt="" class="logo" width="64" height="64">
         <h1 class="wordmark">pothole<span class="jawn">jawn</span></h1>
         <p class="tagline">Dodge the jawns. Pick the Philly route with fewer reported potholes.</p>
-        <button id="panel-close" type="button" aria-label="Close the trip panel">
-          <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true" focusable="false">
-            <path d="M12.5 4 6.5 10l6 6" fill="none" stroke="currentColor" stroke-width="2.4"
-                  stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </button>
       </header>
 
-      <form id="trip-form" autocomplete="off">
-        <label for="start">Starting from</label>
-        <div class="input-geo">
-          <input id="start" name="start" type="text" maxlength="200" required
-                 placeholder="Temple University" value="Temple University">
-          <button id="use-location" class="geo-btn" type="button"
-                  title="Use my current location" aria-label="Use my current location">&#x1F4CD;</button>
-        </div>
-        <label for="end">Going to</label>
-        <input id="end" name="end" type="text" maxlength="200" required
-               placeholder="Citizens Bank Park" value="Citizens Bank Park">
-        <button id="go" type="submit">Find routes</button>
-      </form>
+      <div class="mode-switch" role="tablist" aria-label="Choose a tool">
+        <button type="button" id="tab-trip" class="mode-tab" role="tab"
+                aria-selected="true" aria-controls="mode-trip">Plan a trip</button>
+        <button type="button" id="tab-ask" class="mode-tab" role="tab"
+                aria-selected="false" aria-controls="mode-ask" tabindex="-1">Ask 311 data</button>
+      </div>
 
-      <p id="status" class="status" role="status" aria-live="polite"></p>
+      <section id="mode-trip" class="mode-panel" role="tabpanel" aria-labelledby="tab-trip">
+        <form id="trip-form" autocomplete="off">
+          <label for="start">Starting from</label>
+          <div class="input-geo">
+            <input id="start" name="start" type="text" maxlength="200" required
+                   placeholder="Temple University" value="Temple University">
+            <button id="use-location" class="geo-btn" type="button"
+                    title="Use my current location" aria-label="Use my current location">&#x1F4CD;</button>
+          </div>
+          <label for="end">Going to</label>
+          <input id="end" name="end" type="text" maxlength="200" required
+                 placeholder="Citizens Bank Park" value="Citizens Bank Park">
+          <button id="go" type="submit">Find routes</button>
+        </form>
 
-      <section id="live" hidden aria-live="polite">
-        <h2 class="live-title">What the agent is doing</h2>
-        <ol id="live-steps"></ol>
+        <p id="status" class="status" role="status" aria-live="polite"></p>
+
+        <section id="live" hidden aria-live="polite">
+          <h2 class="live-title">What the agent is doing</h2>
+          <ol id="live-steps"></ol>
+        </section>
+
+        <section id="results" hidden>
+          <div id="briefing" class="briefing"></div>
+          <div id="routes" class="routes"></div>
+
+          <details id="activity">
+            <summary>What the agent did</summary>
+            <ol id="steps"></ol>
+          </details>
+
+          <h2 id="list-title"></h2>
+          <ul id="pothole-list" class="pothole-list"></ul>
+        </section>
+
+        <p class="fine-print">Markers are open resident reports of street defects from the last
+          12 months, from Philadelphia 311. They are not verified and some may be patched
+          already. Plan before you drive, not while driving.</p>
       </section>
 
-      <section id="results" hidden>
-        <div id="briefing" class="briefing"></div>
-        <div id="routes" class="routes"></div>
-
-        <details id="activity">
-          <summary>What the agent did</summary>
-          <ol id="steps"></ol>
-        </details>
-
-        <h2 id="list-title"></h2>
-        <ul id="pothole-list" class="pothole-list"></ul>
-      </section>
-
-      <section id="ask" aria-label="Ask the analyst">
-        <h2 class="ask-title">Ask the 311 analyst</h2>
+      <section id="mode-ask" class="mode-panel" role="tabpanel" aria-labelledby="tab-ask" hidden>
         <p class="ask-explainer">An AI analyst that writes SQL against 5.9M live Philadelphia
-          311 records. Ask it anything about the city's service requests.</p>
+          311 records &mdash; ask it anything about the city's service requests.</p>
         <div class="ask-chips" role="group" aria-label="Example questions">
           <button type="button" class="ask-chip">Which zips wait longest for pothole repairs?</button>
           <button type="button" class="ask-chip">Illegal dumping vs potholes: which gets fixed faster?</button>
@@ -111,12 +117,10 @@
       </section>
 
       <footer>
-        <p>Markers are open resident reports of street defects from the last 12 months, from
-          Philadelphia 311. They are not verified and some may be patched already.
-          Plan before you drive, not while driving.</p>
         <p>Data: OpenDataPhilly. Routing: OSRM. Map: OpenStreetMap.</p>
         <p class="footer-credit">Built at Code &amp; Coffee Philadelphia AI Agent Hackathon 2026 &middot;
-          <a href="https://github.com/dgpugliese/potholejawn" rel="noopener">Source on GitHub</a></p>
+          <a href="https://github.com/dgpugliese/potholejawn" rel="noopener">Source on GitHub</a> &middot;
+          <a href="https://dgpugliese.dev/potholejawn" rel="noopener">Case study</a></p>
       </footer>
     </div>
   </aside>
