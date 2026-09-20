@@ -55,7 +55,6 @@ body {
   width: 340px;
   max-width: 60vw;
   opacity: 0.085;
-  transform: translate(-50%, -50%);
   pointer-events: none;
   user-select: none;
 }
@@ -82,7 +81,7 @@ body {
 
 .pill-logo { flex: none; width: 28px; height: auto; }
 
-.search-pill input {
+input#pill-input {
   flex: 1;
   min-width: 0;
   font: inherit;
@@ -93,8 +92,8 @@ body {
   color: var(--ink);
 }
 
-.search-pill input::placeholder { color: #7a7f85; font-weight: 600; }
-.search-pill input:focus { outline: none; }
+input#pill-input::placeholder { color: #7a7f85; font-weight: 600; }
+input#pill-input:focus { outline: none; }
 .search-pill:focus-within {
   border-color: var(--asphalt);
   box-shadow: var(--shadow-float), 0 0 0 2px rgba(38, 40, 43, 0.25);
@@ -589,6 +588,9 @@ footer a:hover { color: var(--sign-green); }
     width: auto;
     transform: none;
   }
+
+  /* keep the zoom control clear of the pill */
+  .leaflet-top.leaflet-left { top: 74px; }
 
   .panel {
     top: auto;

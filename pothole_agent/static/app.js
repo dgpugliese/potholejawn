@@ -29,10 +29,14 @@
   watermark.className = "map-watermark";
   watermarkPane.appendChild(watermark);
   function centerWatermark() {
+    // setPosition owns the element's transform, so subtract half the rendered
+    // size ourselves instead of relying on a CSS translate(-50%, -50%).
     const c = map.containerPointToLayerPoint(map.getSize().divideBy(2));
-    L.DomUtil.setPosition(watermark, c);
+    const half = L.point(watermark.offsetWidth / 2, watermark.offsetHeight / 2);
+    L.DomUtil.setPosition(watermark, c.subtract(half));
   }
   map.on("move zoom viewreset resize", centerWatermark);
+  watermark.addEventListener("load", centerWatermark);
   centerWatermark();
 
   // ---- Floating pill + slide-in panel ---------------------------------------
