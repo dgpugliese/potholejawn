@@ -1,4 +1,4 @@
-# Pothole Pilot (potholejawn)
+# potholejawn
 
 **Devpost submission copy — AI Agent Hackathon, Coffee and Code Philadelphia — Open Track**
 Builder: David Pugliese (solo). Repo: https://github.com/dgpugliese/potholejawn · Home: https://potholejawn.com
@@ -17,7 +17,7 @@ Philadelphia publishes every 311 request since 2014 — about 5.9 million rows o
 
 ## What it does
 
-**Pothole Pilot** is a Waze-style map for pothole avoidance. You type where you are and where you're going in Philadelphia. An AI agent geocodes both places, fetches the driving route plus alternatives from OSRM, runs a PostGIS query against the city's live 311 API for open "Street Defect" reports within 30 meters of each route, weighs pothole count, report age, and drive time, and recommends the smoother drive — with every reported pothole plotted on the map and a plain-language briefing explaining the pick.
+**potholejawn** is a Waze-style map for pothole avoidance. You type where you are and where you're going in Philadelphia. An AI agent geocodes both places, fetches the driving route plus alternatives from OSRM, runs a PostGIS query against the city's live 311 API for open "Street Defect" reports within 30 meters of each route, weighs pothole count, report age, and drive time, and recommends the smoother drive — with every reported pothole plotted on the map and a plain-language briefing explaining the pick.
 
 Real example from live data: Temple University to Citizens Bank Park. Same 17-minute drive; one route passes 9 open pothole reports, the other 13.
 
@@ -57,7 +57,7 @@ The repo also ships a second agent — a 311 **accountability analyst** — that
 
 ## What's next
 
-- Live at **potholejawn.com** (and potholejawn.app) as the product home.
+- Live at **potholejawn.com** (and potholejawn.app) as the product home — installable as a PWA today, app stores via Capacitor next.
 - Severity weighting by report age and defect type, not just count.
 - A "report a pothole" deep link to Philly 311 from any marker.
 - A follow-up question box in the UI wired to the analyst agent ("how long do potholes in this zip take to fix?").

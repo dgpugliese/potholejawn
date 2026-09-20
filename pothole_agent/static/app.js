@@ -75,7 +75,8 @@
         });
         const n = data.potholes.length;
         citywideBadge.textContent =
-          n.toLocaleString() + " open pothole report" + (n === 1 ? "" : "s") + " in view";
+          n.toLocaleString() + (n >= 1500 ? "+" : "") +
+          " open pothole report" + (n === 1 ? "" : "s") + " in view";
         citywideBadge.hidden = false;
       })
       .catch(function () { /* keep the last good dots; the map stays usable */ });

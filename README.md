@@ -1,11 +1,11 @@
-# Pothole Pilot (Philly Pothole Agent)
+# potholejawn
 
 Type where you are and where you are going in Philadelphia. An AI agent looks up
 both places, fetches the driving routes, scans each one against the city's live
 311 data for open pothole reports, and recommends the smoother drive, with a map
 of every reported pothole along the way. Product home: [potholejawn.com](https://potholejawn.com).
 
-![Pothole Pilot](docs/screenshot.png)
+![potholejawn](docs/screenshot.png)
 
 Example from live data: Temple University to Citizens Bank Park. One route passes
 9 open pothole reports, the other 13, for the same 17-minute drive.

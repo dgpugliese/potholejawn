@@ -1,4 +1,4 @@
-# Demo video script — Pothole Pilot (≤ 3:00)
+# Demo video script — potholejawn (≤ 3:00)
 
 One continuous screen recording. Two windows only: the browser (map UI) and one terminal. Speak plainly, no filler. Total spoken script below runs about 2:40 at normal pace, leaving buffer.
 
@@ -19,7 +19,7 @@ One continuous screen recording. Two windows only: the browser (map UI) and one 
 
 Show the map UI, empty.
 
-> "This is Pothole Pilot — potholejawn dot com. Philadelphia publishes every 311 request since 2014, about five point nine million rows. This agent uses that data, live, to route you around potholes. Watch."
+> "This is potholejawn — potholejawn dot com. Philadelphia publishes every 311 request since 2014, about five point nine million rows. This agent uses that data, live, to route you around potholes. Watch."
 
 ### 0:15 – 0:35 — Type the trip
 
@@ -67,7 +67,7 @@ Back to the map.
 
 ### 2:55 – 3:00 — Close
 
-> "Pothole Pilot. Built solo in a day at Coffee and Code Philly. potholejawn dot com."
+> "potholejawn. Built solo in a day at Coffee and Code Philly. potholejawn dot com."
 
 ## Cut-for-time priority (if running long)
 
