@@ -330,13 +330,10 @@
     marker.bindPopup(popup);
   });
 
-  function updateLandmarks() {
-    const show = map.getZoom() >= LANDMARK_MIN_ZOOM;
-    if (show && !map.hasLayer(landmarkLayer)) landmarkLayer.addTo(map);
-    else if (!show && map.hasLayer(landmarkLayer)) map.removeLayer(landmarkLayer);
-  }
-  map.on("zoomend", updateLandmarks);
-  updateLandmarks();
+  // Landmark markers are kept off the map (owner call: the chips cluttered it).
+  // The LANDMARKS list still powers instant autocomplete matches, and the layer
+  // wiring stays here should the chips ever earn their way back.
+  void LANDMARK_MIN_ZOOM;
   // ---------------------------------------------------------------------------
 
   // ---- Location autocomplete ------------------------------------------------
