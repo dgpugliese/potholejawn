@@ -7,6 +7,7 @@ language model never writes it, so nothing here can be steered by a prompt.
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -91,8 +92,27 @@ def _geocode_nominatim(address: str) -> dict[str, Any] | None:
     }
 
 
+# "lat, lon" pairs (e.g. from the browser's geolocation) skip the geocoders.
+_COORD_RE = re.compile(r"^\s*(-?\d{1,2}(?:\.\d+)?)\s*,\s*(-?\d{1,3}(?:\.\d+)?)\s*$")
+
+
 def geocode(address: str) -> dict[str, Any]:
-    """Turn an address or place name into coordinates inside Philadelphia."""
+    """Turn an address, place name, or "lat, lon" pair into Philly coordinates."""
+    if isinstance(address, str):
+        match = _COORD_RE.match(address)
+        if match:
+            lat, lon = float(match.group(1)), float(match.group(2))
+            if not in_philadelphia(lat, lon):
+                raise RoutingError(
+                    "Those coordinates are outside Philadelphia. "
+                    "This tool only covers trips inside the city."
+                )
+            return {
+                "lat": lat,
+                "lon": lon,
+                "matched_address": f"{lat:.5f}, {lon:.5f} (pinned location)",
+                "source": "device coordinates",
+            }
     cleaned = _clean_address(address)
     for lookup in (_geocode_census, _geocode_nominatim):
         try:

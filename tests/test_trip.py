@@ -225,3 +225,23 @@ def test_potholes_endpoint_rejects_bad_bbox():
     client = create_app().test_client()
     assert client.get("/api/potholes?bbox=junk").status_code == 400
     assert client.get("/api/potholes").status_code == 400
+
+
+def test_geocode_accepts_philly_coordinates_without_network(monkeypatch):
+    from pothole_agent import routing
+
+    # Any network call would be a bug: coordinates must short-circuit.
+    monkeypatch.setattr(
+        routing.requests, "get", lambda *a, **k: (_ for _ in ()).throw(AssertionError("network"))
+    )
+    found = routing.geocode("39.9526, -75.1652")
+    assert found["lat"] == 39.9526 and found["lon"] == -75.1652
+    assert found["source"] == "device coordinates"
+    assert "39.95260" in found["matched_address"]
+
+
+def test_geocode_rejects_coordinates_outside_philly():
+    from pothole_agent.routing import RoutingError, geocode
+
+    with pytest.raises(RoutingError):
+        geocode("40.7128, -74.0060")  # New York City
