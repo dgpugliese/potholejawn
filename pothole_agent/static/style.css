@@ -46,12 +46,30 @@ body {
     var(--lane);
 }
 
+.masthead {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.masthead .logo { flex: none; margin-top: 3px; }
+
 h1 {
   margin: 0;
   font-size: clamp(1.9rem, 5vw, 2.25rem);
   font-weight: 800;
   letter-spacing: -0.02em;
   line-height: 1.05;
+}
+
+/* "jawn" gets the hazard-yellow warning-plate treatment. */
+.wordmark .jawn {
+  background: var(--warning);
+  color: var(--ink);
+  padding: 0 0.12em;
+  margin-left: 0.02em;
+  border-radius: 5px;
+  box-shadow: 0 1px 0 var(--asphalt);
 }
 
 .tagline {
@@ -346,6 +364,20 @@ footer a:hover { color: var(--sign-green); }
   box-shadow: 0 1px 3px rgba(27, 28, 30, 0.35);
 }
 .pothole-marker.old { background: var(--cone); }
+
+/* Count of citywide open reports currently in view (Leaflet control). */
+.citywide-badge {
+  padding: 0.3rem 0.65rem;
+  background: var(--card-bg);
+  border: 1px solid var(--hairline);
+  border-left: 4px solid var(--warning);
+  border-radius: 6px;
+  box-shadow: var(--shadow-card);
+  font-family: "Overpass", "Helvetica Neue", Arial, sans-serif;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--asphalt-soft);
+}
 
 .endpoint-marker {
   width: 16px; height: 16px;
