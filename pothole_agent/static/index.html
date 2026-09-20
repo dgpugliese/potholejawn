@@ -40,6 +40,12 @@
   <aside id="panel" class="panel" aria-label="Trip planner">
     <button id="sheet-handle" class="sheet-handle" type="button"
             aria-label="Expand or collapse the trip panel"><span></span></button>
+    <button id="peek-summary" class="peek-summary" type="button" hidden
+            aria-label="Show trip details">
+      <span id="peek-chip" class="peek-chip"></span>
+      <span id="peek-meta" class="peek-meta"></span>
+      <span class="peek-hint">Swipe up</span>
+    </button>
     <div class="panel-scroll">
       <header class="masthead">
         <img src="/static/logo.png" alt="" class="logo" width="64" height="64">
@@ -55,6 +61,11 @@
       </div>
 
       <section id="mode-trip" class="mode-panel" role="tabpanel" aria-labelledby="tab-trip">
+        <button type="button" id="trip-summary" class="trip-summary" hidden
+                aria-label="Edit the trip">
+          <span id="trip-summary-text" class="trip-summary-text"></span>
+          <span class="trip-summary-edit">Edit</span>
+        </button>
         <form id="trip-form" autocomplete="off">
           <label for="start">Starting from</label>
           <div class="input-geo">
@@ -85,8 +96,11 @@
             <ol id="steps"></ol>
           </details>
 
-          <h2 id="list-title"></h2>
-          <ul id="pothole-list" class="pothole-list"></ul>
+          <details id="list-disclosure" class="list-disclosure" open>
+            <summary id="list-summary"></summary>
+            <h2 id="list-title"></h2>
+            <ul id="pothole-list" class="pothole-list"></ul>
+          </details>
         </section>
 
         <p class="fine-print">Markers are open resident reports of street defects from the last

@@ -68,6 +68,9 @@
   let sheetState = "full";
 
   function setSheet(state) {
+    // Peek only earns its strip once there is a trip to summarize; before
+    // that, minimizing the sheet just dismisses it (map + pill only).
+    if (state === "peek" && !trip) { closePanel(); return; }
     sheetState = state;
     panel.classList.toggle("sheet-peek", state === "peek");
     panel.classList.toggle("sheet-half", state === "half");
@@ -412,6 +415,47 @@
   let trip = null;
   let activeId = null;
   let markersById = {};
+
+  // ---- Mobile: collapse the spent form to a "start → end · Edit" row --------
+  const tripSummary = document.getElementById("trip-summary");
+  const tripSummaryText = document.getElementById("trip-summary-text");
+
+  function collapseTripForm() {
+    if (!mobileMq.matches) return;
+    tripSummaryText.textContent = form.start.value + " → " + form.end.value;
+    tripSummary.hidden = false;
+    form.hidden = true;
+  }
+
+  function expandTripForm() {
+    tripSummary.hidden = true;
+    form.hidden = false;
+  }
+
+  tripSummary.addEventListener("click", function () {
+    expandTripForm();
+    if (mobileMq.matches) setSheet("full");
+  });
+  mobileMq.addEventListener("change", function () {
+    if (!mobileMq.matches) expandTripForm(); // desktop always shows the form
+  });
+
+  // ---- Mobile: informative peek strip ---------------------------------------
+  const peekSummary = document.getElementById("peek-summary");
+  const peekChip = document.getElementById("peek-chip");
+  const peekMeta = document.getElementById("peek-meta");
+
+  function updatePeekSummary() {
+    const route = trip && trip.routes.find(function (r) { return r.route_id === activeId; });
+    if (!route) { peekSummary.hidden = true; return; }
+    peekChip.textContent = route.route_id;
+    peekChip.classList.toggle("recommended", route.route_id === trip.recommended);
+    const n = route.potholes.length;
+    peekMeta.textContent = n + " reported · " + route.miles + " mi · " + route.minutes + " min";
+    peekSummary.hidden = false;
+  }
+
+  peekSummary.addEventListener("click", function () { setSheet("half"); });
 
   function el(tag, className, text) {
     const node = document.createElement(tag);
@@ -795,9 +839,17 @@
 
   function drawPotholeList() {
     const active = trip.routes.find((r) => r.route_id === activeId);
-    document.getElementById("list-title").textContent = active.potholes.length
+    const n = active.potholes.length;
+    document.getElementById("list-title").textContent = n
       ? "Along route " + active.route_id + ", in driving order"
       : "No open reports along route " + active.route_id;
+    // Mobile shows the list under a collapsed disclosure; desktop keeps the
+    // wrapper open (its summary is hidden), so nothing changes there.
+    const disclosure = document.getElementById("list-disclosure");
+    document.getElementById("list-summary").textContent = n
+      ? n + " report" + (n === 1 ? "" : "s") + " along Route " + active.route_id
+      : "No open reports along Route " + active.route_id;
+    disclosure.open = !mobileMq.matches;
     const list = document.getElementById("pothole-list");
     list.replaceChildren();
     active.potholes.forEach(function (p) {
@@ -847,6 +899,7 @@
     drawMap();
     drawRouteSigns();
     drawPotholeList();
+    updatePeekSummary();
   }
 
   function render(data) {
@@ -858,12 +911,11 @@
     results.hidden = false;
     hideCitywide(); // trip results are the hero; the citywide dots would be noise
     if (mobileMq.matches && panelOpen) {
+      collapseTripForm(); // the spent form folds to a "start → end · Edit" row
       setSheet("half"); // routes + map together
-      // Bring the briefing and route signs to the top of the half sheet, so
-      // the answer is the first thing on screen rather than the spent form.
-      const scroller = panel.querySelector(".panel-scroll");
-      const delta = briefing.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
-      scroller.scrollTop = Math.max(0, scroller.scrollTop + delta - 8);
+      // Route signs now lead the results, so the top of the sheet IS the
+      // answer: just rewind the scroller.
+      panel.querySelector(".panel-scroll").scrollTop = 0;
     }
     selectRoute(data.recommended);
   }
@@ -873,8 +925,10 @@
     button.disabled = true;
     if (mobileMq.matches && panelOpen) {
       // Drop the sheet to half so the map and the live agent steps share the
-      // screen, and dismiss the keyboard so it doesn't cover either.
+      // screen, and dismiss the keyboard so it doesn't cover either. The form
+      // folds to its summary row so the ticker starts near the top.
       if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+      collapseTripForm();
       setSheet("half");
     }
     setStatus("Looking up addresses, routes, and open pothole reports.");
@@ -909,10 +963,12 @@
     });
     source.addEventListener("trip_error", function (e) {
       finish();
+      expandTripForm(); // let the user fix the inputs right away
       setStatus(JSON.parse(e.data).error || "Something went wrong.", true);
     });
     source.onerror = function () { // connection-level failure (e.g. bad input, server down)
       finish();
+      expandTripForm();
       setStatus("Could not plan the trip. Check the addresses and try again.", true);
     };
   });

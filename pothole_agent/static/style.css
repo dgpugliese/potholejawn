@@ -297,6 +297,7 @@ h2 {
 }
 
 form { display: grid; gap: var(--space-1); }
+form[hidden] { display: none; } /* the display:grid above must not defeat [hidden] */
 
 label { font-weight: 600; font-size: 0.85rem; margin-top: var(--space-2); color: var(--asphalt-soft); }
 
@@ -468,6 +469,22 @@ summary {
 summary:hover { background: rgba(38, 40, 43, 0.04); }
 
 details[open] summary { border-bottom: 1px solid var(--hairline); border-radius: var(--radius-card) var(--radius-card) 0 0; }
+
+/* On desktop the pothole-list disclosure is invisible chrome: the summary is
+   hidden and the wrapper adds nothing, so the panel renders exactly as before.
+   Mobile restyles it into a real collapsed disclosure card below. */
+.list-disclosure,
+details.list-disclosure[open] {
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.list-disclosure > summary { display: none; }
+
+/* Mobile-only affordances; inert on desktop. */
+.peek-summary, .trip-summary { display: none; }
 
 details ol { margin: var(--space-2) 0 var(--space-3); }
 
@@ -803,7 +820,8 @@ footer a:hover { color: var(--sign-green); }
     height: 92dvh;
     border-right: 0;
     border-top: 6px solid var(--asphalt);
-    border-radius: 18px 18px 0 0;
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -6px 16px rgba(27, 28, 30, 0.14), 0 -18px 44px rgba(27, 28, 30, 0.20);
     /* lane marking runs along the top edge on mobile */
     background:
       linear-gradient(90deg, var(--warning) 50%, transparent 50%) left top -6px / 36px 2px repeat-x,
@@ -854,13 +872,22 @@ footer a:hover { color: var(--sign-green); }
 
   .panel-scroll {
     padding: 0 var(--space-4) calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
+    overflow-x: hidden; /* no sideways leaks on a narrow viewport */
   }
 
-  /* No scroll-trap at peek: the strip is a grab surface, not a viewport. */
-  .panel.sheet-peek .panel-scroll { overflow-y: hidden; }
+  /* No scroll-trap at peek: the strip is a grab surface, not a viewport, and
+     its content fades out so the summary strip reads as the minimized face. */
+  .panel.sheet-peek .panel-scroll { overflow-y: hidden; opacity: 0; transition: opacity 150ms ease; }
 
-  .masthead .logo { width: 44px; }
-  h1 { font-size: 1.7rem; }
+  /* Content fades in as the sheet expands out of peek. Toggling between half
+     and full computes the same animation value, so it never restarts mid-drag. */
+  .panel.sheet-half .panel-scroll,
+  .panel.sheet-full .panel-scroll { animation: sheet-content-in 220ms ease both; }
+
+  /* The pill already brands the app on mobile — the masthead is desktop
+     furniture that pushed real content below the fold. */
+  .masthead { display: none; }
+  .mode-switch { margin-top: var(--space-3); }
 
   /* 16px inputs so iOS Safari never zooms the page on focus. */
   input[type="text"] { font-size: 1rem; }
@@ -888,6 +915,144 @@ footer a:hover { color: var(--sign-green); }
 
   /* Autocomplete dropdown never overflows a small viewport. */
   .ac-list { max-width: calc(100vw - 16px); max-height: 38vh; }
+
+  /* ---- Mobile results order: answer first, evidence after -------------------
+     Route signs top, then the briefing, then the collapsed agent log, then the
+     collapsed pothole list. Pure visual order — the DOM (and desktop) is
+     untouched. */
+  #results { display: flex; flex-direction: column; min-width: 0; }
+  #results .routes { order: 1; margin-top: var(--space-3); }
+  #results .briefing { order: 2; }
+  #results #activity { order: 3; margin-top: var(--space-4); }
+  #results .list-disclosure { order: 4; }
+
+  /* Pothole list collapses under a "9 reports along Route A" disclosure. */
+  .list-disclosure,
+  details.list-disclosure[open] {
+    margin: var(--space-4) 0 0;
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius-card);
+    background: var(--card-bg);
+    box-shadow: var(--shadow-card);
+  }
+  .list-disclosure > summary { display: block; min-height: 44px; }
+  .list-disclosure #list-title { display: none; }
+  .list-disclosure .pothole-list { padding: var(--space-1) var(--space-4) var(--space-2); }
+  .list-disclosure .pothole-list li { margin: 0; }
+
+  /* ---- Compact trip summary row replaces the spent form after results ------- */
+  .trip-summary:not([hidden]) {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    width: 100%;
+    min-height: 44px;
+    padding: 0.55rem 0.85rem;
+    font: inherit;
+    font-size: 0.88rem;
+    font-weight: 600;
+    text-align: left;
+    color: var(--ink);
+    background: var(--card-bg);
+    border: 1.5px solid var(--asphalt);
+    border-radius: var(--radius-control);
+    cursor: pointer;
+    box-shadow: 0 1px 0 var(--asphalt);
+  }
+  .trip-summary-text {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .trip-summary-edit {
+    flex: none;
+    font-size: 0.78rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--ink);
+    background: var(--warning);
+    padding: 0.18rem 0.5rem;
+    border-radius: 999px;
+    box-shadow: 0 1px 0 var(--asphalt);
+  }
+
+  /* ---- Informative peek strip: the sheet's "minimized" face ----------------- */
+  .panel.sheet-peek .peek-summary:not([hidden]) { display: flex; }
+  .peek-summary {
+    align-items: center;
+    gap: 0.6rem;
+    margin: -4px var(--space-4) 0;
+    padding: 0 0 var(--space-2);
+    font: inherit;
+    background: transparent;
+    border: 0;
+    text-align: left;
+    cursor: pointer;
+  }
+  .peek-chip {
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    font-weight: 800;
+    font-size: 1rem;
+    color: #fff;
+    background: var(--sign-blue);
+    box-shadow: inset 0 0 0 1.5px #fff, 0 1px 0 var(--asphalt);
+  }
+  .peek-chip.recommended { background: var(--sign-green); }
+  .peek-meta {
+    flex: 1;
+    min-width: 0;
+    font-weight: 700;
+    font-size: 0.92rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .peek-hint {
+    flex: none;
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+  }
+  .peek-hint::before { content: "\2191\00a0"; }
+
+  /* ---- Live agent steps as a compact one-line ticker ------------------------
+     Smaller type, single-line rows, capped height with its own scroll (the
+     existing scrollIntoView keeps it pinned to the newest step), so the map
+     stays visible above the half sheet during a run. */
+  #live, #ask-live { padding: var(--space-2) var(--space-3); }
+  #live-steps, #ask-live-steps {
+    max-height: 24vh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-left: 1.1rem;
+    font-size: 0.78rem;
+  }
+  #live-steps li, #ask-live-steps li {
+    margin: 0.14rem 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    overflow-wrap: normal;
+  }
+
+  /* Analyst answer stays comfortably readable on a phone. */
+  #answer { font-size: 0.95rem; line-height: 1.55; }
+}
+
+@keyframes sheet-content-in {
+  from { opacity: 0.5; }
+  to { opacity: 1; }
 }
 
 @media (prefers-reduced-motion: reduce) {
