@@ -77,7 +77,7 @@ The repo also ships a second agent — a 311 **accountability analyst** — that
 
 ### Judging criteria map (for reference, not part of the Devpost body)
 
-- **Technical execution**: two agents on one shared loop, live city API, multi-source geocoding, PostGIS spatial queries, SSE streaming, 27 tests.
+- **Technical execution**: two agents on one shared loop, live city API, multi-source geocoding, PostGIS spatial queries, SSE streaming, 42 tests.
 - **Agentic design**: model chooses tools and order; SQL errors fed back for self-correction; structured `recommend_route` output; 12-step limit; per-run JSONL audit trail.
 - **Innovation**: routing on live 311 data — the pothole layer Waze doesn't have — plus an accountability analyst over the same loop.
 - **Impact**: 5.9M rows of public data made usable by anyone who can type two addresses; drivers, journalists, and council staff.
