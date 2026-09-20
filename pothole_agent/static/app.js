@@ -114,7 +114,11 @@
   function describeStep(event) {
     switch (event.type) {
       case "thought": return event.text;
-      case "tool_call": return "Called " + event.tool + " " + JSON.stringify(event.input);
+      case "tool_call":
+        if (event.input && typeof event.input.query === "string") {
+          return "Ran SQL (" + event.tool + "): " + event.input.query;
+        }
+        return "Called " + event.tool + " " + JSON.stringify(event.input);
       case "tool_error": return "Error from " + event.tool + ": " + event.preview;
       case "usage": return null;
       case "agent_unavailable": return "Agent unavailable (" + event.detail + "). Used the built-in planner instead.";
@@ -193,6 +197,59 @@
     source.onerror = function () { // connection-level failure (e.g. bad input, server down)
       finish();
       setStatus("Could not plan the trip. Check the addresses and try again.", true);
+    };
+  });
+
+  // Follow-up question box wired to the 311 analyst agent.
+  const askForm = document.getElementById("ask-form");
+  const askButton = document.getElementById("ask-go");
+  const askStatusEl = document.getElementById("ask-status");
+  const answerEl = document.getElementById("answer");
+
+  function setAskStatus(message, isError) {
+    askStatusEl.textContent = message;
+    askStatusEl.classList.toggle("error", Boolean(isError));
+  }
+
+  askForm.addEventListener("submit", function (event) {
+    event.preventDefault();
+    const question = askForm.question.value.trim();
+    if (!question) { setAskStatus("Type a question first.", true); return; }
+    askButton.disabled = true;
+    setAskStatus("The analyst is querying the city's 311 data.");
+    answerEl.hidden = true;
+    const askLive = document.getElementById("ask-live");
+    const askSteps = document.getElementById("ask-live-steps");
+    askSteps.replaceChildren();
+    askLive.hidden = false;
+
+    const source = new EventSource("/api/ask/stream?q=" + encodeURIComponent(question));
+    function finish() {
+      source.close();
+      askLive.hidden = true;
+      askButton.disabled = false;
+    }
+    source.addEventListener("step", function (e) {
+      const step = JSON.parse(e.data);
+      const text = describeStep(step);
+      if (text) {
+        askSteps.append(el("li", step.type === "tool_error" ? "error" : "", text));
+        askSteps.lastChild.scrollIntoView({ block: "nearest" });
+      }
+    });
+    source.addEventListener("result", function (e) {
+      finish();
+      setAskStatus("");
+      answerEl.textContent = JSON.parse(e.data).answer; // textContent only, never innerHTML
+      answerEl.hidden = false;
+    });
+    source.addEventListener("ask_error", function (e) {
+      finish();
+      setAskStatus(JSON.parse(e.data).error || "Something went wrong.", true);
+    });
+    source.onerror = function () { // connection-level failure (e.g. bad input, server down)
+      finish();
+      setAskStatus("Could not reach the analyst. Try again.", true);
     };
   });
 })();

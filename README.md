@@ -3,7 +3,7 @@
 Type where you are and where you are going in Philadelphia. An AI agent looks up
 both places, fetches the driving routes, scans each one against the city's live
 311 data for open pothole reports, and recommends the smoother drive, with a map
-of every reported pothole along the way. Product home: [potholejawn.app](https://potholejawn.app).
+of every reported pothole along the way. Product home: [potholejawn.com](https://potholejawn.com).
 
 ![Pothole Pilot](docs/screenshot.png)
 
@@ -45,7 +45,8 @@ in the UI under "What the agent did", including token usage.
 
 The analyst agent (`pothole_agent/agent.py`, `tools.py`) uses `get_schema`,
 `list_categories`, and `run_sql`. When a query fails, the error goes back to the
-model, which fixes the SQL and retries.
+model, which fixes the SQL and retries. The "Ask the analyst" box in the UI
+streams this agent's steps live and shows every SQL query it runs.
 
 ## Reliability and safety
 

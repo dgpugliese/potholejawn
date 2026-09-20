@@ -49,6 +49,22 @@
       <ul id="pothole-list" class="pothole-list"></ul>
     </section>
 
+    <section id="ask" aria-label="Ask the analyst">
+      <h2>Ask the 311 analyst</h2>
+      <form id="ask-form" autocomplete="off">
+        <label for="question">A question about Philly 311 data</label>
+        <input id="question" name="question" type="text" maxlength="500" required
+               placeholder="How long do potholes in 19143 take to get fixed?">
+        <button id="ask-go" type="submit">Ask the analyst</button>
+      </form>
+      <p id="ask-status" class="status" role="status" aria-live="polite"></p>
+      <section id="ask-live" hidden aria-live="polite">
+        <h2 class="live-title">What the analyst is doing</h2>
+        <ol id="ask-live-steps"></ol>
+      </section>
+      <div id="answer" class="briefing" hidden></div>
+    </section>
+
     <footer>
       <p>Markers are open resident reports of street defects from the last 12 months, from
         Philadelphia 311. They are not verified and some may be patched already.

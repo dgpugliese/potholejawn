@@ -58,7 +58,7 @@ input[type="text"] {
   background: #fff;
 }
 
-button#go {
+button#go, button#ask-go {
   margin-top: 0.9rem;
   font: inherit;
   font-weight: 800;
@@ -71,7 +71,7 @@ button#go {
   cursor: pointer;
 }
 
-button#go:disabled { opacity: 0.55; cursor: progress; }
+button#go:disabled, button#ask-go:disabled { opacity: 0.55; cursor: progress; }
 
 input:focus-visible, button:focus-visible, summary:focus-visible, .route-sign:focus-visible {
   outline: 3px solid var(--cone);
@@ -123,9 +123,11 @@ input:focus-visible, button:focus-visible, summary:focus-visible, .route-sign:fo
 
 details { margin-top: 1.25rem; }
 summary { cursor: pointer; font-weight: 600; }
-#steps, #live-steps { padding-left: 1.2rem; font-size: 0.85rem; color: var(--asphalt-soft); }
-#steps li, #live-steps li { margin: 0.3rem 0; overflow-wrap: anywhere; }
-#steps li.error, #live-steps li.error { color: #a61b1b; }
+#steps, #live-steps, #ask-live-steps { padding-left: 1.2rem; font-size: 0.85rem; color: var(--asphalt-soft); }
+#steps li, #live-steps li, #ask-live-steps li { margin: 0.3rem 0; overflow-wrap: anywhere; }
+#steps li.error, #live-steps li.error, #ask-live-steps li.error { color: #a61b1b; }
+
+#ask { margin-top: 1.5rem; padding-top: 0.5rem; border-top: 1px solid #dcdad3; }
 .live-title { font-size: 0.95rem; margin: 0.75rem 0 0.25rem; }
 
 .pothole-list { list-style: none; margin: 0; padding: 0; }
