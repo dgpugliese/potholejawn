@@ -99,6 +99,24 @@ def investigate(
     )
 
 
+def _move_cache_breakpoint(messages: list[dict[str, Any]]) -> None:
+    """Keep exactly one ephemeral cache breakpoint: on the newest user message.
+
+    The API allows at most 4 breakpoints per request, and the loop grows the
+    message list every step, so the breakpoint has to move rather than pile up.
+    """
+    for message in messages:
+        if message["role"] == "user" and isinstance(message["content"], list):
+            for block in message["content"]:
+                if isinstance(block, dict):
+                    block.pop("cache_control", None)
+    last = messages[-1]
+    if last["role"] == "user" and isinstance(last["content"], list) and last["content"]:
+        block = last["content"][-1]
+        if isinstance(block, dict):
+            block["cache_control"] = {"type": "ephemeral"}
+
+
 def run_agent(
     question: str,
     system_prompt: str,
@@ -107,6 +125,7 @@ def run_agent(
     client: Any = None,
     on_event: Logger | None = None,
     run_dir: Path | str = "runs",
+    model: str | None = None,
 ) -> str:
     """Generic tool-calling loop shared by every agent in this project."""
     if client is None:
@@ -121,15 +140,23 @@ def run_agent(
         if on_event:
             on_event(event)
 
-    model = os.environ.get("POTHOLE_MODEL", DEFAULT_MODEL)
-    messages: list[dict[str, Any]] = [{"role": "user", "content": question}]
+    model = model or os.environ.get("POTHOLE_MODEL", DEFAULT_MODEL)
+    # One breakpoint on the system prompt caches the whole stable prefix
+    # (tools render before system), so repeat requests read it at ~10% price.
+    system_blocks = [
+        {"type": "text", "text": system_prompt, "cache_control": {"type": "ephemeral"}}
+    ]
+    messages: list[dict[str, Any]] = [
+        {"role": "user", "content": [{"type": "text", "text": question}]}
+    ]
     emit({"type": "question", "text": question, "model": model, "log": str(log_path)})
 
     for step in range(1, MAX_STEPS + 1):
+        _move_cache_breakpoint(messages)
         response = client.messages.create(
             model=model,
             max_tokens=2000,
-            system=system_prompt,
+            system=system_blocks,
             tools=tool_specs,
             messages=messages,
         )
@@ -139,6 +166,10 @@ def run_agent(
                 "step": step,
                 "input_tokens": response.usage.input_tokens,
                 "output_tokens": response.usage.output_tokens,
+                "cache_read_input_tokens": getattr(response.usage, "cache_read_input_tokens", 0),
+                "cache_creation_input_tokens": getattr(
+                    response.usage, "cache_creation_input_tokens", 0
+                ),
             }
         )
         messages.append({"role": "assistant", "content": response.content})
