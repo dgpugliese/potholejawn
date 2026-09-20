@@ -171,6 +171,53 @@ def build_pothole_sql(coordinates: list[list[float]], buffer_m: int = DEFAULT_BU
     )
 
 
+def build_bbox_sql(south: float, west: float, north: float, east: float, limit: int = 1500) -> str:
+    """Open-report query for a map viewport. Every interpolated value is a validated number,
+    clamped to the Philadelphia bounding box."""
+    min_lat, max_lat, min_lon, max_lon = PHILLY_BOUNDS
+    south = max(min_lat, min(max_lat, float(south)))
+    north = max(min_lat, min(max_lat, float(north)))
+    west = max(min_lon, min(max_lon, float(west)))
+    east = max(min_lon, min(max_lon, float(east)))
+    if south > north or west > east:
+        raise RoutingError("Bounding box is inverted.")
+    limit = max(1, min(2000, int(limit)))
+    return (
+        "SELECT service_request_id, address, requested_datetime, lat, lon "
+        "FROM public_cases_fc "
+        "WHERE service_name = 'Street Defect' AND status = 'Open' "
+        f"AND requested_datetime >= NOW() - INTERVAL '{LOOKBACK_DAYS} days' "
+        "AND the_geom IS NOT NULL "
+        f"AND lat BETWEEN {round(south, 5)} AND {round(north, 5)} "
+        f"AND lon BETWEEN {round(west, 5)} AND {round(east, 5)} "
+        f"ORDER BY requested_datetime DESC LIMIT {limit}"
+    )
+
+
+def potholes_in_bbox(south: float, west: float, north: float, east: float) -> list[dict[str, Any]]:
+    """All open 'Street Defect' reports inside a map viewport, newest first."""
+    sql = build_bbox_sql(south, west, north, east)
+    response = requests.post(CARTO_URL, data={"q": sql}, timeout=TIMEOUT_SECONDS)
+    payload = response.json()
+    if response.status_code != 200 or "error" in payload:
+        raise RuntimeError(f"City data error: {payload.get('error', response.text[:200])}")
+    now = datetime.now(timezone.utc)
+    potholes = []
+    for row in payload.get("rows", []):
+        reported = datetime.fromisoformat(row["requested_datetime"].replace("Z", "+00:00"))
+        potholes.append(
+            {
+                "id": row["service_request_id"],
+                "address": row["address"] or "Unknown address",
+                "lat": row["lat"],
+                "lon": row["lon"],
+                "reported": reported.date().isoformat(),
+                "days_open": (now - reported).days,
+            }
+        )
+    return potholes
+
+
 def potholes_along(route: Route, buffer_m: int = DEFAULT_BUFFER_M) -> list[dict[str, Any]]:
     """Open 'Street Defect' reports within buffer_m meters of the route, in driving order."""
     sql = build_pothole_sql(route.coordinates, buffer_m)

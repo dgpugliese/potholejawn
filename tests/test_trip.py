@@ -168,3 +168,21 @@ def test_api_returns_trip(fake_services, monkeypatch):
     assert response.status_code == 200
     assert response.get_json()["recommended"] == "B"
     assert response.headers["X-Content-Type-Options"] == "nosniff"
+
+
+def test_build_bbox_sql_clamps_to_philly():
+    from pothole_agent.routing import PHILLY_BOUNDS, build_bbox_sql
+
+    sql = build_bbox_sql(0.0, -100.0, 89.0, 0.0)
+    min_lat, max_lat, min_lon, max_lon = PHILLY_BOUNDS
+    assert f"lat BETWEEN {min_lat} AND {max_lat}" in sql
+    assert f"lon BETWEEN {min_lon} AND {max_lon}" in sql
+    assert "status = 'Open'" in sql
+
+
+def test_potholes_endpoint_rejects_bad_bbox():
+    from pothole_agent.webapp import create_app
+
+    client = create_app().test_client()
+    assert client.get("/api/potholes?bbox=junk").status_code == 400
+    assert client.get("/api/potholes").status_code == 400

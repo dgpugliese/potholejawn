@@ -15,7 +15,7 @@ from pathlib import Path
 from flask import Flask, Response, jsonify, request, send_from_directory
 
 from .agent import investigate
-from .routing import MAX_ADDRESS_CHARS, RoutingError
+from .routing import MAX_ADDRESS_CHARS, RoutingError, potholes_in_bbox
 from .trip import plan_trip
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -105,6 +105,39 @@ def create_app() -> Flask:
             if len(value) > MAX_ADDRESS_CHARS:
                 return f"The {label} address is too long."
         return None
+
+    # Viewport pothole layer: no LLM tokens spent, so no rate limit — just a
+    # short shared cache to be polite to the city's API.
+    potholes_cache: dict[str, tuple[float, list]] = {}
+    potholes_cache_lock = threading.Lock()
+
+    @app.get("/api/potholes")
+    def potholes():
+        """Open pothole reports inside a map viewport: ?bbox=south,west,north,east."""
+        bbox = request.args.get("bbox", "")
+        try:
+            south, west, north, east = (float(part) for part in bbox.split(","))
+        except ValueError:
+            return jsonify({"error": "bbox must be south,west,north,east"}), 400
+        # Round the box so nearby pans share a cache entry.
+        key = ",".join(str(round(v, 2)) for v in (south, west, north, east))
+        now = time.monotonic()
+        with potholes_cache_lock:
+            hit = potholes_cache.get(key)
+            if hit and now - hit[0] < 300:
+                return jsonify({"potholes": hit[1], "cached": True})
+        try:
+            rows = potholes_in_bbox(south, west, north, east)
+        except RoutingError as error:
+            return jsonify({"error": str(error)}), 400
+        except Exception:  # never leak internals to the browser
+            app.logger.exception("viewport pothole query failed")
+            return jsonify({"error": "City data service is not responding."}), 502
+        with potholes_cache_lock:
+            if len(potholes_cache) > 64:
+                potholes_cache.clear()
+            potholes_cache[key] = (now, rows)
+        return jsonify({"potholes": rows, "cached": False})
 
     @app.post("/api/trip")
     def trip():
