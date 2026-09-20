@@ -59,10 +59,27 @@
   // ---- Floating pill + slide-in panel ---------------------------------------
   const panel = document.getElementById("panel");
   const panelTab = document.getElementById("panel-tab");
+  const mobileMq = window.matchMedia("(max-width: 768px)");
   let panelOpen = false;
 
+  // ---- Mobile bottom-sheet states -------------------------------------------
+  // peek (~120px strip) / half (55% — map and routes both visible) / full
+  // (92% — reading and typing). Desktop never gets these classes.
+  let sheetState = "full";
+
+  function setSheet(state) {
+    sheetState = state;
+    panel.classList.toggle("sheet-peek", state === "peek");
+    panel.classList.toggle("sheet-half", state === "half");
+    panel.classList.toggle("sheet-full", state === "full");
+    // "collapsed" stays in sync with peek so the watermark-centring and
+    // fitBounds code paths that predate the three-state sheet keep working.
+    panel.classList.toggle("collapsed", state === "peek");
+  }
+
   function openPanel() {
-    panel.classList.remove("collapsed");
+    if (mobileMq.matches) setSheet("full");
+    else panel.classList.remove("collapsed");
     if (panelOpen) return;
     panelOpen = true;
     document.body.classList.add("panel-open");
@@ -83,11 +100,15 @@
   // Padding for fitBounds so routes are not hidden under the open panel,
   // the pill, or the mobile bottom sheet.
   function fitPadding() {
-    const mobile = window.matchMedia("(max-width: 768px)").matches;
-    const collapsed = panel.classList.contains("collapsed");
+    const mobile = mobileMq.matches;
     if (mobile) {
-      const sheet = panelOpen && !collapsed ? Math.round(window.innerHeight * 0.58) + 16 : 40;
-      return { paddingTopLeft: [28, 84], paddingBottomRight: [28, sheet] };
+      let sheet = 40;
+      if (panelOpen) {
+        // At peek only the strip covers the map; at half or full assume the
+        // half height — routes are typically viewed with the sheet at half.
+        sheet = sheetState === "peek" ? 148 : Math.round(window.innerHeight * 0.55) + 16;
+      }
+      return { paddingTopLeft: [24, 92], paddingBottomRight: [24, sheet] };
     }
     return { paddingTopLeft: [panelOpen ? 380 + 40 : 40, 84], paddingBottomRight: [40, 40] };
   }
@@ -237,8 +258,100 @@
   });
 
   panelTab.addEventListener("click", togglePanel);
-  document.getElementById("sheet-handle").addEventListener("click", function () {
-    panel.classList.toggle("collapsed"); // mobile bottom sheet: tap to expand/collapse
+
+  // ---- Mobile sheet: drag gesture on the handle + tap-cycle fallback --------
+  // Pointer events drive a live inline transform while the finger is down;
+  // release snaps (via the existing CSS transition, so it keeps the same
+  // momentum-feel easing as every other panel move) to the nearest state, or
+  // dismisses the sheet on a hard downward fling past peek.
+  const sheetHandle = document.getElementById("sheet-handle");
+  let sheetDrag = null;
+  let sheetJustDragged = false;
+
+  function sheetVisibleHeights() {
+    // Visible sheet height (px) for each snap state, matching the CSS. The
+    // peek value ignores the safe-area inset: it only picks the nearest snap
+    // target, and the CSS translate adds the inset back on its own.
+    return { full: panel.offsetHeight, half: Math.round(window.innerHeight * 0.55), peek: 120 };
+  }
+
+  function currentSheetTranslate() {
+    // How far the panel is translated down from its natural (fully open) spot.
+    const rect = panel.getBoundingClientRect();
+    return rect.top - (window.innerHeight - panel.offsetHeight);
+  }
+
+  sheetHandle.addEventListener("pointerdown", function (event) {
+    if (!mobileMq.matches || !panelOpen) return;
+    sheetDrag = {
+      startY: event.clientY,
+      lastY: event.clientY,
+      lastT: event.timeStamp,
+      velocity: 0,
+      startTranslate: currentSheetTranslate(),
+      moved: false,
+    };
+    try { sheetHandle.setPointerCapture(event.pointerId); } catch (err) { /* synthetic events have no active pointer */ }
+    panel.classList.add("dragging");
+  });
+
+  sheetHandle.addEventListener("pointermove", function (event) {
+    if (!sheetDrag) return;
+    const dy = event.clientY - sheetDrag.startY;
+    if (Math.abs(dy) > 6) sheetDrag.moved = true;
+    const dt = event.timeStamp - sheetDrag.lastT;
+    if (dt > 0) sheetDrag.velocity = (event.clientY - sheetDrag.lastY) / dt; // px per ms, + = down
+    sheetDrag.lastY = event.clientY;
+    sheetDrag.lastT = event.timeStamp;
+    const H = panel.offsetHeight;
+    const translate = Math.min(H + 24, Math.max(0, sheetDrag.startTranslate + dy));
+    panel.style.transform = "translateY(" + translate + "px)";
+  });
+
+  function endSheetDrag(event) {
+    if (!sheetDrag) return;
+    const drag = sheetDrag;
+    sheetDrag = null;
+    panel.classList.remove("dragging"); // transitions back on before the snap
+    if (!drag.moved) {
+      panel.style.transform = "";
+      return; // a plain tap: let the click handler cycle states
+    }
+    sheetJustDragged = true;
+    setTimeout(function () { sheetJustDragged = false; }, 80);
+    const H = panel.offsetHeight;
+    const heights = sheetVisibleHeights();
+    // Project the release point a beat forward so a flick carries momentum.
+    const projected = Math.min(H + 24, Math.max(0, currentSheetTranslate() + drag.velocity * 160));
+    const visible = H - projected;
+    if (visible < heights.peek / 2 && drag.velocity > 0) {
+      panel.style.transform = "";
+      closePanel(); // flung down past peek: dismiss
+      return;
+    }
+    let best = "peek";
+    let bestDist = Infinity;
+    ["peek", "half", "full"].forEach(function (state) {
+      const d = Math.abs(visible - heights[state]);
+      if (d < bestDist) { bestDist = d; best = state; }
+    });
+    setSheet(best);
+    panel.style.transform = ""; // hand position back to the state class; CSS animates the snap
+    setTimeout(function () { map.invalidateSize(); }, 320);
+    try {
+      if (event && sheetHandle.hasPointerCapture(event.pointerId)) {
+        sheetHandle.releasePointerCapture(event.pointerId);
+      }
+    } catch (err) { /* pointer already gone */ }
+  }
+
+  sheetHandle.addEventListener("pointerup", endSheetDrag);
+  sheetHandle.addEventListener("pointercancel", endSheetDrag);
+
+  sheetHandle.addEventListener("click", function () {
+    if (sheetJustDragged) return; // the click that trails a drag is not a tap
+    // Tap fallback cycles peek -> half -> full -> peek.
+    setSheet(sheetState === "peek" ? "half" : sheetState === "half" ? "full" : "peek");
   });
   document.addEventListener("keydown", function (event) {
     if (event.key === "Escape" && panelOpen && !document.querySelector(".leaflet-popup")) {
@@ -587,6 +700,12 @@
       }
     });
     window.addEventListener("resize", function () { if (!box.hidden) position(); });
+    if (window.visualViewport) {
+      // Keep the dropdown pinned under its input while the mobile keyboard
+      // opens/closes or the visual viewport pans.
+      window.visualViewport.addEventListener("resize", function () { if (!box.hidden) position(); });
+      window.visualViewport.addEventListener("scroll", function () { if (!box.hidden) position(); });
+    }
   }
   // ---------------------------------------------------------------------------
 
@@ -705,12 +824,26 @@
     drawSteps();
     results.hidden = false;
     hideCitywide(); // trip results are the hero; the citywide dots would be noise
+    if (mobileMq.matches && panelOpen) {
+      setSheet("half"); // routes + map together
+      // Bring the briefing and route signs to the top of the half sheet, so
+      // the answer is the first thing on screen rather than the spent form.
+      const scroller = panel.querySelector(".panel-scroll");
+      const delta = briefing.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
+      scroller.scrollTop = Math.max(0, scroller.scrollTop + delta - 8);
+    }
     selectRoute(data.recommended);
   }
 
   form.addEventListener("submit", function (event) {
     event.preventDefault();
     button.disabled = true;
+    if (mobileMq.matches && panelOpen) {
+      // Drop the sheet to half so the map and the live agent steps share the
+      // screen, and dismiss the keyboard so it doesn't cover either.
+      if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+      setSheet("half");
+    }
     setStatus("Looking up addresses, routes, and open pothole reports.");
     results.hidden = true;
     showCitywide(); // a new search starts fresh: bring back the citywide dots

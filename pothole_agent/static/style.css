@@ -756,6 +756,9 @@ footer a:hover { color: var(--sign-green); }
 }
 
 /* ---- Mobile: bottom sheet (Waze / Google Maps pattern) --------------------- */
+/* Three snap states — peek (handle + masthead strip), half (map + routes both
+   visible), full (reading/typing) — driven by .sheet-peek/.sheet-half/
+   .sheet-full from app.js, with a real touch drag on the handle. */
 @media (max-width: 768px) {
   .map-watermark { width: 200px; }
 
@@ -767,12 +770,24 @@ footer a:hover { color: var(--sign-green); }
     right: 12px;
     width: auto;
     transform: none;
+    top: max(12px, calc(env(safe-area-inset-top, 0px) + 6px));
+    padding: 0.4rem 0.4rem 0.4rem 0.9rem;
   }
 
-  /* keep the zoom control clear of the pill, and the citywide badge clear
-     of the wrapped attribution line */
-  .leaflet-top.leaflet-left { top: 74px; }
-  .leaflet-bottom.leaflet-left { bottom: 46px; }
+  /* Comfortable thumb target on the pill's action button. */
+  #pill-go { width: 44px; height: 44px; }
+
+  /* keep the zoom control clear of the (taller) pill, and the citywide badge
+     clear of the wrapped attribution line, the home indicator, and the
+     sheet's peek strip when the sheet is open */
+  .leaflet-top.leaflet-left { top: calc(max(12px, env(safe-area-inset-top, 0px) + 6px) + 72px); }
+  .leaflet-bottom.leaflet-left {
+    bottom: calc(46px + env(safe-area-inset-bottom, 0px));
+    transition: bottom var(--panel-ease);
+  }
+  body.panel-open .leaflet-bottom.leaflet-left {
+    bottom: calc(132px + env(safe-area-inset-bottom, 0px));
+  }
 
   .panel {
     top: auto;
@@ -781,10 +796,11 @@ footer a:hover { color: var(--sign-green); }
     bottom: 0;
     width: 100%;
     max-width: none;
-    height: 58vh;
+    height: 92vh;
+    height: 92dvh;
     border-right: 0;
     border-top: 6px solid var(--asphalt);
-    border-radius: 16px 16px 0 0;
+    border-radius: 18px 18px 0 0;
     /* lane marking runs along the top edge on mobile */
     background:
       linear-gradient(90deg, var(--warning) 50%, transparent 50%) left top -6px / 36px 2px repeat-x,
@@ -792,8 +808,20 @@ footer a:hover { color: var(--sign-green); }
     transform: translateY(calc(100% + 24px));
   }
 
+  /* Open with no state class = full, so pre-existing code paths that only
+     toggle body.panel-open still land somewhere sensible. */
   body.panel-open .panel { transform: translateY(0); }
-  body.panel-open .panel.collapsed { transform: translateY(calc(100% - 56px)); }
+  body.panel-open .panel.sheet-half {
+    transform: translateY(calc(100% - 55vh));
+    transform: translateY(calc(100% - 55dvh));
+  }
+  body.panel-open .panel.sheet-peek,
+  body.panel-open .panel.collapsed {
+    transform: translateY(calc(100% - 120px - env(safe-area-inset-bottom, 0px)));
+  }
+
+  /* While a finger owns the sheet, position is inline and transitions pause. */
+  .panel.dragging { transition: none !important; }
 
   .sheet-handle {
     display: flex;
@@ -801,11 +829,12 @@ footer a:hover { color: var(--sign-green); }
     justify-content: center;
     flex: none;
     width: 100%;
-    height: 30px;
+    height: 44px;
     padding: 0;
     background: transparent;
     border: 0;
-    cursor: pointer;
+    cursor: grab;
+    touch-action: none; /* the drag gesture owns this surface */
   }
 
   .sheet-handle span {
@@ -814,12 +843,48 @@ footer a:hover { color: var(--sign-green); }
     height: 5px;
     border-radius: 999px;
     background: rgba(38, 40, 43, 0.28);
+    transition: background-color 150ms ease;
   }
 
-  .panel-scroll { padding: 0 var(--space-4) var(--space-4); }
+  .panel.dragging .sheet-handle { cursor: grabbing; }
+  .panel.dragging .sheet-handle span { background: rgba(38, 40, 43, 0.5); }
+
+  .panel-scroll {
+    padding: 0 var(--space-4) calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* No scroll-trap at peek: the strip is a grab surface, not a viewport. */
+  .panel.sheet-peek .panel-scroll { overflow-y: hidden; }
 
   .masthead .logo { width: 44px; }
   h1 { font-size: 1.7rem; }
+
+  /* 16px inputs so iOS Safari never zooms the page on focus. */
+  input[type="text"] { font-size: 1rem; }
+
+  /* Thumb-sized touch targets throughout the sheet. */
+  .geo-btn { min-width: 44px; min-height: 44px; }
+  .mode-tab { min-height: 44px; }
+
+  /* Analyst chips wrap into full-width tappable rows instead of a
+     horizontal scroller that hides two of the three examples. */
+  .ask-chips {
+    flex-wrap: wrap;
+    overflow-x: visible;
+    margin: 0 0 var(--space-2);
+    padding: 0;
+  }
+  .ask-chip {
+    flex: 1 1 100%;
+    white-space: normal;
+    text-align: left;
+    min-height: 44px;
+    padding: 0.55rem 0.85rem;
+    line-height: 1.35;
+  }
+
+  /* Autocomplete dropdown never overflows a small viewport. */
+  .ac-list { max-width: calc(100vw - 16px); max-height: 38vh; }
 }
 
 @media (prefers-reduced-motion: reduce) {
