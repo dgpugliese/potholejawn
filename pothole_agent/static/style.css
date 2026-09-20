@@ -118,6 +118,38 @@ input#pill-input:focus { outline: none; }
 #pill-go:hover { filter: brightness(1.04); transform: translateY(-1px); box-shadow: 0 2px 0 var(--asphalt); }
 #pill-go:active { transform: translateY(1px); box-shadow: 0 0 0 var(--asphalt); }
 
+/* ---- Docked popout tab (opens the panel when it is closed) ----------------- */
+.panel-tab {
+  position: fixed;
+  left: 0;
+  top: 50%;
+  z-index: 1040; /* just under the panel, so the panel slides over it */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 104px;
+  padding: 0;
+  color: var(--asphalt);
+  background: var(--warning);
+  border: 2px solid var(--asphalt);
+  border-left: 0;
+  border-radius: 0 10px 10px 0;
+  cursor: pointer;
+  box-shadow: var(--shadow-raised);
+  transform: translateY(-50%);
+  transition: transform var(--panel-ease), opacity var(--panel-ease), filter 120ms ease;
+}
+
+.panel-tab:hover { transform: translateY(-50%) translateX(3px); filter: brightness(1.04); }
+
+/* Slides/fades away in step with the panel sliding in. */
+body.panel-open .panel-tab {
+  transform: translateY(-50%) translateX(-110%);
+  opacity: 0;
+  pointer-events: none;
+}
+
 /* ---- Slide-in trip panel --------------------------------------------------- */
 .panel {
   position: fixed;
@@ -684,6 +716,9 @@ footer a:hover { color: var(--sign-green); }
 /* ---- Mobile: bottom sheet (Waze / Google Maps pattern) --------------------- */
 @media (max-width: 768px) {
   .map-watermark { width: 200px; }
+
+  /* The bottom sheet's peek strip and the pill cover this role on mobile. */
+  .panel-tab { display: none; }
 
   .search-pill {
     left: 12px;

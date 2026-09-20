@@ -214,6 +214,7 @@
     );
   });
 
+  document.getElementById("panel-tab").addEventListener("click", openPanel);
   document.getElementById("panel-close").addEventListener("click", closePanel);
   document.getElementById("sheet-handle").addEventListener("click", function () {
     panel.classList.toggle("collapsed"); // mobile bottom sheet: tap to expand/collapse
