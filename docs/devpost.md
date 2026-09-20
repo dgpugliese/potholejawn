@@ -1,7 +1,7 @@
 # Pothole Pilot (potholejawn)
 
 **Devpost submission copy — AI Agent Hackathon, Coffee and Code Philadelphia — Open Track**
-Builder: David Pugliese (solo). Repo: https://github.com/dgpugliese/potholejawn · Home: https://potholejawn.app
+Builder: David Pugliese (solo). Repo: https://github.com/dgpugliese/potholejawn · Home: https://potholejawn.com
 
 ---
 
@@ -57,7 +57,7 @@ The repo also ships a second agent — a 311 **accountability analyst** — that
 
 ## What's next
 
-- Live at **potholejawn.app** as the product home.
+- Live at **potholejawn.com** (and potholejawn.app) as the product home.
 - Severity weighting by report age and defect type, not just count.
 - A "report a pothole" deep link to Philly 311 from any marker.
 - A follow-up question box in the UI wired to the analyst agent ("how long do potholes in this zip take to fix?").
