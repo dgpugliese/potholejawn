@@ -8,6 +8,7 @@ The map therefore always works, and the agent adds judgment on top.
 
 from __future__ import annotations
 
+import os
 from collections.abc import Callable
 from typing import Any
 
@@ -224,6 +225,9 @@ def plan_trip(
                 client=client,
                 on_event=record,
                 run_dir=run_dir,
+                # Opt-in cheaper model for the trip loop (e.g. claude-haiku-4-5);
+                # unset means run_agent's normal POTHOLE_MODEL/default applies.
+                model=os.environ.get("POTHOLE_TRIP_MODEL"),
             )
             mode = "agent"
         except RoutingError:
