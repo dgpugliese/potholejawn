@@ -111,6 +111,29 @@ def create_app() -> Flask:
     potholes_cache: dict[str, tuple[float, list]] = {}
     potholes_cache_lock = threading.Lock()
 
+    # Trip results: popular endpoint pairs repeat (demos, shares), and 311 data
+    # moves slowly, so a repeat within the window costs zero API tokens.
+    trip_cache: dict[tuple[str, str], tuple[float, dict]] = {}
+    trip_cache_lock = threading.Lock()
+    trip_cache_seconds = int(os.environ.get("TRIP_CACHE_SECONDS", "3600"))
+
+    def cached_trip(start: str, end: str) -> dict | None:
+        key = (start.strip().lower(), end.strip().lower())
+        with trip_cache_lock:
+            hit = trip_cache.get(key)
+            if hit and time.monotonic() - hit[0] < trip_cache_seconds:
+                return hit[1]
+        return None
+
+    def store_trip(start: str, end: str, result: dict) -> None:
+        if result.get("mode") != "agent":  # fallback runs are cheap to redo
+            return
+        key = (start.strip().lower(), end.strip().lower())
+        with trip_cache_lock:
+            if len(trip_cache) > 128:
+                trip_cache.clear()
+            trip_cache[key] = (time.monotonic(), result)
+
     @app.get("/api/potholes")
     def potholes():
         """Open pothole reports inside a map viewport: ?bbox=south,west,north,east."""
@@ -147,11 +170,16 @@ def create_app() -> Flask:
         if problem:
             return jsonify({"error": problem}), 400
         use_agent = bool(body.get("use_agent", True)) and bool(os.environ.get("ANTHROPIC_API_KEY"))
+        hit = cached_trip(start, end)
+        if hit is not None:  # before the limiter: cache hits are free
+            return jsonify({**hit, "cached": True})
         ip = client_ip()
         if not limiter.try_acquire(ip):
             return jsonify({"error": RATE_LIMIT_MESSAGE}), 429
         try:
-            return jsonify(plan_trip(start, end, use_agent=use_agent))
+            result = plan_trip(start, end, use_agent=use_agent)
+            store_trip(start, end, result)
+            return jsonify(result)
         except RoutingError as error:
             return jsonify({"error": str(error)}), 400
         except Exception:  # never leak internals to the browser
@@ -176,6 +204,19 @@ def create_app() -> Flask:
         use_agent = bool(request.args.get("use_agent", "1") != "0") and bool(
             os.environ.get("ANTHROPIC_API_KEY")
         )
+        hit = cached_trip(start, end)
+        if hit is not None:  # before the limiter: cache hits are free
+
+            def generate_cached():
+                step = {"type": "cached", "text": "Serving a recent result for this exact trip."}
+                yield f"event: step\ndata: {json.dumps(step)}\n\n"
+                yield f"event: result\ndata: {json.dumps({**hit, 'cached': True}, default=str)}\n\n"
+
+            return Response(
+                generate_cached(),
+                mimetype="text/event-stream",
+                headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+            )
         ip = client_ip()
         if not limiter.try_acquire(ip):
             return jsonify({"error": RATE_LIMIT_MESSAGE}), 429
@@ -186,6 +227,7 @@ def create_app() -> Flask:
                 result = plan_trip(
                     start, end, use_agent=use_agent, on_step=lambda e: events.put(("step", e))
                 )
+                store_trip(start, end, result)
                 events.put(("result", result))
             except RoutingError as error:
                 events.put(("trip_error", {"error": str(error)}))
