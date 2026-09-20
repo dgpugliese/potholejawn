@@ -52,8 +52,8 @@ body {
    and app.js re-centres it on every map move. */
 .map-watermark {
   position: absolute;
-  width: 340px;
-  max-width: 60vw;
+  width: 480px;
+  max-width: 65vw;
   opacity: 0.085;
   pointer-events: none;
   user-select: none;

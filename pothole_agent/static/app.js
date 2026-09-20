@@ -28,15 +28,32 @@
   watermark.alt = "";
   watermark.className = "map-watermark";
   watermarkPane.appendChild(watermark);
+  function visibleMapCenter() {
+    // Centre within the map area the user can actually see: the open desktop
+    // panel covers the left edge, the open mobile sheet covers the bottom.
+    const size = map.getSize();
+    let left = 0;
+    let bottom = 0;
+    const panelEl = document.getElementById("panel");
+    if (panelEl && !panelEl.classList.contains("collapsed")) {
+      const rect = panelEl.getBoundingClientRect();
+      if (window.innerWidth > 768) left = Math.max(0, rect.right);
+      else bottom = Math.max(0, window.innerHeight - rect.top);
+    }
+    return L.point((left + size.x) / 2, (size.y - bottom) / 2);
+  }
   function centerWatermark() {
     // setPosition owns the element's transform, so subtract half the rendered
     // size ourselves instead of relying on a CSS translate(-50%, -50%).
-    const c = map.containerPointToLayerPoint(map.getSize().divideBy(2));
+    const c = map.containerPointToLayerPoint(visibleMapCenter());
     const half = L.point(watermark.offsetWidth / 2, watermark.offsetHeight / 2);
     L.DomUtil.setPosition(watermark, c.subtract(half));
   }
   map.on("move zoom viewreset resize", centerWatermark);
   watermark.addEventListener("load", centerWatermark);
+  document.addEventListener("transitionend", function (event) {
+    if (event.target && event.target.id === "panel") centerWatermark();
+  });
   centerWatermark();
 
   // ---- Floating pill + slide-in panel ---------------------------------------
