@@ -9,6 +9,7 @@ import json
 import os
 import queue
 import threading
+import time
 from pathlib import Path
 
 from flask import Flask, Response, jsonify, request, send_from_directory
@@ -25,6 +26,51 @@ NO_KEY_MESSAGE = (
     "to ask follow-up questions. Trip planning still works without it."
 )
 
+# Rate limits for the agent endpoints (they spend API tokens per request).
+# Overridable via env vars; localhost is always exempt for local demos/tests.
+RATE_MAX_PER_IP = int(os.environ.get("RATE_MAX_PER_IP", "6"))  # runs per window per IP
+RATE_WINDOW_SECONDS = int(os.environ.get("RATE_WINDOW_SECONDS", "300"))
+RATE_MAX_PER_HOUR = int(os.environ.get("RATE_MAX_PER_HOUR", "60"))  # runs/hour, all IPs
+RATE_MAX_CONCURRENT = int(os.environ.get("RATE_MAX_CONCURRENT", "3"))  # active runs
+RATE_LIMIT_MESSAGE = "Rate limit reached — try again in a few minutes."
+_LOCAL_IPS = {"127.0.0.1", "::1"}
+
+
+class _RateLimiter:
+    """In-memory, thread-safe sliding-window limiter. One per app instance."""
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._per_ip: dict[str, list[float]] = {}
+        self._recent: list[float] = []
+        self._active = 0
+
+    def try_acquire(self, ip: str) -> bool:
+        """Reserve a run slot for this IP; False means 'limited, refuse'."""
+        if ip in _LOCAL_IPS:
+            return True
+        now = time.monotonic()
+        with self._lock:
+            hits = [t for t in self._per_ip.get(ip, []) if now - t < RATE_WINDOW_SECONDS]
+            self._per_ip[ip] = hits
+            self._recent = [t for t in self._recent if now - t < 3600]
+            if (
+                self._active >= RATE_MAX_CONCURRENT
+                or len(hits) >= RATE_MAX_PER_IP
+                or len(self._recent) >= RATE_MAX_PER_HOUR
+            ):
+                return False
+            hits.append(now)
+            self._recent.append(now)
+            self._active += 1
+            return True
+
+    def release(self, ip: str) -> None:
+        if ip in _LOCAL_IPS:
+            return
+        with self._lock:
+            self._active = max(0, self._active - 1)
+
 
 def _analyst_client():
     """Model client for the analyst; None means 'let the SDK build one'.
@@ -37,6 +83,11 @@ def _analyst_client():
 def create_app() -> Flask:
     app = Flask(__name__, static_folder=str(STATIC_DIR), static_url_path="/static")
     app.config["MAX_CONTENT_LENGTH"] = 16 * 1024  # requests are two short strings
+    limiter = _RateLimiter()
+
+    def client_ip() -> str:
+        # Behind the Cloudflare tunnel the real client is in CF-Connecting-IP.
+        return request.headers.get("CF-Connecting-IP") or request.remote_addr or ""
 
     @app.get("/")
     def index():
@@ -63,6 +114,9 @@ def create_app() -> Flask:
         if problem:
             return jsonify({"error": problem}), 400
         use_agent = bool(body.get("use_agent", True)) and bool(os.environ.get("ANTHROPIC_API_KEY"))
+        ip = client_ip()
+        if not limiter.try_acquire(ip):
+            return jsonify({"error": RATE_LIMIT_MESSAGE}), 429
         try:
             return jsonify(plan_trip(start, end, use_agent=use_agent))
         except RoutingError as error:
@@ -70,6 +124,8 @@ def create_app() -> Flask:
         except Exception:  # never leak internals to the browser
             app.logger.exception("trip planning failed")
             return jsonify({"error": "A map or city data service is not responding. Try again."}), 502
+        finally:
+            limiter.release(ip)
 
     @app.get("/api/trip/stream")
     def trip_stream():
@@ -85,6 +141,9 @@ def create_app() -> Flask:
         use_agent = bool(request.args.get("use_agent", "1") != "0") and bool(
             os.environ.get("ANTHROPIC_API_KEY")
         )
+        ip = client_ip()
+        if not limiter.try_acquire(ip):
+            return jsonify({"error": RATE_LIMIT_MESSAGE}), 429
         events: queue.Queue = queue.Queue()
 
         def worker() -> None:
@@ -100,7 +159,9 @@ def create_app() -> Flask:
                 events.put(
                     ("trip_error", {"error": "A map or city data service is not responding. Try again."})
                 )
-            events.put(None)  # sentinel: stream is done
+            finally:
+                limiter.release(ip)
+                events.put(None)  # sentinel: stream is done
 
         threading.Thread(target=worker, daemon=True).start()
 
@@ -140,6 +201,9 @@ def create_app() -> Flask:
             events.put(("ask_error", {"error": NO_KEY_MESSAGE}))
             events.put(None)
         else:
+            ip = client_ip()
+            if not limiter.try_acquire(ip):
+                return jsonify({"error": RATE_LIMIT_MESSAGE}), 429
 
             def worker() -> None:
                 try:
@@ -155,7 +219,9 @@ def create_app() -> Flask:
                     events.put(
                         ("ask_error", {"error": "The analyst hit an error. Try again."})
                     )
-                events.put(None)  # sentinel: stream is done
+                finally:
+                    limiter.release(ip)
+                    events.put(None)  # sentinel: stream is done
 
             threading.Thread(target=worker, daemon=True).start()
 
