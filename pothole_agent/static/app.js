@@ -135,6 +135,75 @@
     return L.divIcon({ className: "", html: '<div class="' + className + '"></div>', iconSize: [size, size], iconAnchor: [size / 2, size / 2] });
   }
 
+  // ---- Philly landmark layer ------------------------------------------------
+  // Tiny clickable chips for iconic spots. Clicking one offers "From here" /
+  // "To here" shortcuts that fill the trip form — a fast way to start a demo.
+  // L.marker lives in Leaflet's markerPane, which stacks above the canvas
+  // overlayPane used by the citywide dots, so landmarks always sit on top.
+  const LANDMARK_MIN_ZOOM = 11;
+  const LANDMARKS = [
+    { name: "City Hall", lat: 39.9526, lon: -75.1635, glyph: "\u{1F3DB}\u{FE0F}" },
+    { name: "Liberty Bell", lat: 39.9496, lon: -75.1503, glyph: "\u{1F514}" },
+    { name: "Philadelphia Museum of Art", lat: 39.9656, lon: -75.1810, glyph: "\u{1F3A8}" },
+    { name: "LOVE Park", lat: 39.9540, lon: -75.1657, glyph: "\u{2764}\u{FE0F}" },
+    { name: "Citizens Bank Park", lat: 39.9061, lon: -75.1665, glyph: "\u{26BE}" },
+    { name: "Lincoln Financial Field", lat: 39.9008, lon: -75.1675, glyph: "\u{1F3C8}" },
+    { name: "Wells Fargo Center", lat: 39.9012, lon: -75.1720, glyph: "\u{1F3C0}" },
+    { name: "30th Street Station", lat: 39.9557, lon: -75.1820, glyph: "\u{1F682}" },
+    { name: "Reading Terminal Market", lat: 39.9533, lon: -75.1593, glyph: "\u{1F968}" },
+    { name: "Temple University", lat: 39.9812, lon: -75.1554, glyph: "\u{1F989}" },
+    { name: "University of Pennsylvania", lat: 39.9522, lon: -75.1932, glyph: "\u{1F393}" },
+    { name: "Boathouse Row", lat: 39.9698, lon: -75.1888, glyph: "\u{1F6A3}" },
+    { name: "Philadelphia Zoo", lat: 39.9714, lon: -75.1958, glyph: "\u{1F981}" },
+    { name: "Betsy Ross House", lat: 39.9524, lon: -75.1450, glyph: "\u{1F9F5}" },
+    { name: "Pennovation Center", lat: 39.9418, lon: -75.1966, glyph: "\u{1F680}" },
+  ];
+  const landmarkLayer = L.layerGroup();
+
+  function landmarkIcon(glyph) {
+    // glyph is our own static string above, never API data.
+    return L.divIcon({
+      className: "",
+      html: '<div class="landmark-chip">' + glyph + "</div>",
+      iconSize: [22, 22],
+      iconAnchor: [11, 11],
+      popupAnchor: [0, -13],
+    });
+  }
+
+  LANDMARKS.forEach(function (lm) {
+    const marker = L.marker([lm.lat, lm.lon], {
+      icon: landmarkIcon(lm.glyph),
+      title: lm.name,
+    }).addTo(landmarkLayer);
+    const popup = el("div", "landmark-popup");
+    popup.append(el("strong", "", lm.name));
+    const actions = el("div", "landmark-actions");
+    [["From here", "start"], ["To here", "end"]].forEach(function (pair) {
+      const btn = el("button", "landmark-btn", pair[0]);
+      btn.type = "button";
+      btn.addEventListener("click", function () {
+        form[pair[1]].value = lm.name + ", Philadelphia, PA";
+        marker.closePopup();
+        const other = pair[1] === "start" ? form.end : form.start;
+        if (other.value.trim()) button.focus();
+        else other.focus();
+      });
+      actions.append(btn);
+    });
+    popup.append(actions);
+    marker.bindPopup(popup);
+  });
+
+  function updateLandmarks() {
+    const show = map.getZoom() >= LANDMARK_MIN_ZOOM;
+    if (show && !map.hasLayer(landmarkLayer)) landmarkLayer.addTo(map);
+    else if (!show && map.hasLayer(landmarkLayer)) map.removeLayer(landmarkLayer);
+  }
+  map.on("zoomend", updateLandmarks);
+  updateLandmarks();
+  // ---------------------------------------------------------------------------
+
   function drawMap() {
     layers.clearLayers();
     markersById = {};

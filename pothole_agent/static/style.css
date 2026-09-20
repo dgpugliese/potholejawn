@@ -379,6 +379,55 @@ footer a:hover { color: var(--sign-green); }
   color: var(--asphalt-soft);
 }
 
+/* Landmark chips: tiny emoji in a white circle, quiet enough to sit under routes. */
+.landmark-chip {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  line-height: 1;
+  background: var(--card-bg);
+  border: 1px solid var(--hairline);
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(27, 28, 30, 0.25);
+  cursor: pointer;
+}
+
+.landmark-popup strong { font-size: 0.9rem; }
+
+.landmark-actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.landmark-btn {
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.25rem 0.55rem;
+  color: var(--ink);
+  background: var(--warning);
+  border: 1.5px solid var(--asphalt);
+  border-radius: var(--radius-control);
+  cursor: pointer;
+  box-shadow: 0 1px 0 var(--asphalt);
+  transition: transform 120ms ease, box-shadow 120ms ease, filter 120ms ease;
+}
+
+.landmark-btn:hover {
+  filter: brightness(1.04);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 0 var(--asphalt);
+}
+
+.landmark-btn:active {
+  transform: translateY(1px);
+  box-shadow: 0 0 0 var(--asphalt);
+}
+
 .endpoint-marker {
   width: 16px; height: 16px;
   border-radius: 50%;
