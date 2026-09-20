@@ -15,6 +15,8 @@ Type two Philly addresses and an AI agent scans the city's live 311 data — 5.9
 
 Philadelphia publishes every 311 request since 2014 — about 5.9 million rows of open civic data — and almost nobody can use it. Answering a real question takes SQL skills and knowledge of the dataset's quirks (NULL zip codes, open cases with no close date, categories that changed names). Meanwhile, in 2026 roughly 19% of pothole reports are still sitting open, averaging 27 days to close. The data to drive around them exists, live, for free. It just needed an agent in front of it. And it's Philly, so obviously it's called potholejawn.
 
+Here's the gap: **no navigation app actually routes you around potholes.** Waze lets users pin them and warns you as you approach — but its router only cares about travel time, so it drives you straight through a cratered block at full speed. Google patented road-quality routing in 2015 and never shipped a "avoid rough roads" toggle. Boston's Street Bump detected potholes for public works, not for drivers. potholejawn picks the route with fewer potholes and tells you why.
+
 ## What it does
 
 **potholejawn** is a Waze-style map for pothole avoidance. You type where you are and where you're going in Philadelphia. An AI agent geocodes both places, fetches the driving route plus alternatives from OSRM, runs a PostGIS query against the city's live 311 API for open "Street Defect" reports within 30 meters of each route, weighs pothole count, report age, and drive time, and recommends the smoother drive — with every reported pothole plotted on the map and a plain-language briefing explaining the pick.
@@ -61,7 +63,8 @@ The repo also ships a second agent — a 311 **accountability analyst** — that
 ## What's next
 
 - Live at **potholejawn.com** (and potholejawn.app) as the product home — installable as a PWA today, app stores via Capacitor next.
-- Severity weighting by report age and defect type, not just count.
+- A true roughness-weighted router: custom edge penalties on the street graph (weighted A*) instead of choosing among OSRM's time-optimal alternatives — tuned so one cratered block doesn't cause an eight-block detour through Philly's narrow one-way grid.
+- Severity weighting with time decay: reports age out unless reinforced (Philly closes tickets on inspection, not repair, and cold patches die each freeze-thaw), plus PavePHL/StreetSmartPHL resurfacing schedules as positive weights.
 - A "report a pothole" deep link to Philly 311 from any marker.
 - Self-hosted OSRM with live traffic instead of the public demo server.
 - Same pattern, other cities: any Socrata/Carto 311 feed can slot in behind the same agent loop.
