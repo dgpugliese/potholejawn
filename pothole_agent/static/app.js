@@ -226,6 +226,7 @@
     const q = pillInput.value.trim();
     if (q) form.end.value = q;
     openPanel();
+    expandTripForm(); // the form may still be collapsed from a previous trip
     form.start.focus();
     form.start.select();
   });
@@ -240,6 +241,7 @@
           const q = pillInput.value.trim();
           if (q) form.end.value = q;
           openPanel();
+          expandTripForm(); // the form may still be collapsed from a previous trip
           form.end.focus();
         },
         function (message) { openPanel(); setStatus(message, true); }
@@ -400,6 +402,7 @@
       modePanels[t.id].hidden = !active;
     });
     tab.focus();
+    updatePeekSummary(); // the peek strip is trip-only; hide it on the Ask tab
   }
 
   modeTabs.forEach(function (tab, i) {
@@ -437,7 +440,12 @@
     if (mobileMq.matches) setSheet("full");
   });
   mobileMq.addEventListener("change", function () {
-    if (!mobileMq.matches) expandTripForm(); // desktop always shows the form
+    if (!mobileMq.matches) {
+      expandTripForm(); // desktop always shows the form
+      // Desktop hides the disclosure's summary toggle, so a list left closed
+      // on mobile would otherwise become unreachable after a rotate/resize.
+      document.getElementById("list-disclosure").open = true;
+    }
   });
 
   // ---- Mobile: informative peek strip ---------------------------------------
@@ -447,7 +455,10 @@
 
   function updatePeekSummary() {
     const route = trip && trip.routes.find(function (r) { return r.route_id === activeId; });
-    if (!route) { peekSummary.hidden = true; return; }
+    // No trip-branded strip while the Ask tab is active: its click handler
+    // opens the sheet onto whichever panel is showing, not the trip.
+    const askActive = document.getElementById("tab-ask").getAttribute("aria-selected") === "true";
+    if (!route || askActive) { peekSummary.hidden = true; return; }
     peekChip.textContent = route.route_id;
     peekChip.classList.toggle("recommended", route.route_id === trip.recommended);
     const n = route.potholes.length;
@@ -843,13 +854,12 @@
     document.getElementById("list-title").textContent = n
       ? "Along route " + active.route_id + ", in driving order"
       : "No open reports along route " + active.route_id;
-    // Mobile shows the list under a collapsed disclosure; desktop keeps the
-    // wrapper open (its summary is hidden), so nothing changes there.
-    const disclosure = document.getElementById("list-disclosure");
+    // Mobile shows the list under a disclosure; its collapsed-by-default state
+    // is set once per trip in render(), so route taps here never slam a
+    // user-opened list shut.
     document.getElementById("list-summary").textContent = n
       ? n + " report" + (n === 1 ? "" : "s") + " along Route " + active.route_id
       : "No open reports along Route " + active.route_id;
-    disclosure.open = !mobileMq.matches;
     const list = document.getElementById("pothole-list");
     list.replaceChildren();
     active.potholes.forEach(function (p) {
@@ -908,6 +918,9 @@
     briefing.replaceChildren(document.createTextNode(data.briefing));
     briefing.append(el("span", "mode", data.mode === "agent" ? "Written by the AI agent from the data below." : "Built-in planner (AI agent not used)."));
     drawSteps();
+    // Fresh trip: mobile starts the report list collapsed, desktop open (its
+    // summary toggle is hidden). Set once here, not on every route tap.
+    document.getElementById("list-disclosure").open = !mobileMq.matches;
     results.hidden = false;
     hideCitywide(); // trip results are the hero; the citywide dots would be noise
     if (mobileMq.matches && panelOpen) {
@@ -961,15 +974,21 @@
       setStatus("");
       render(JSON.parse(e.data));
     });
-    source.addEventListener("trip_error", function (e) {
+    function tripFailed(message) {
       finish();
       expandTripForm(); // let the user fix the inputs right away
-      setStatus(JSON.parse(e.data).error || "Something went wrong.", true);
+      // The failed run is the current state: drop the previous trip so the
+      // peek strip can't advertise a result that contradicts the error.
+      trip = null;
+      activeId = null;
+      updatePeekSummary();
+      setStatus(message, true);
+    }
+    source.addEventListener("trip_error", function (e) {
+      tripFailed(JSON.parse(e.data).error || "Something went wrong.");
     });
     source.onerror = function () { // connection-level failure (e.g. bad input, server down)
-      finish();
-      expandTripForm();
-      setStatus("Could not plan the trip. Check the addresses and try again.", true);
+      tripFailed("Could not plan the trip. Check the addresses and try again.");
     };
   });
 
