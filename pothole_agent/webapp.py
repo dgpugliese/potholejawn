@@ -77,7 +77,7 @@ def _analyst_client():
 
     Exists so tests can monkeypatch in a fake client without an API key.
     """
-    return None
+    return
 
 
 def create_app() -> Flask:
@@ -156,7 +156,9 @@ def create_app() -> Flask:
             return jsonify({"error": str(error)}), 400
         except Exception:  # never leak internals to the browser
             app.logger.exception("trip planning failed")
-            return jsonify({"error": "A map or city data service is not responding. Try again."}), 502
+            return jsonify(
+                {"error": "A map or city data service is not responding. Try again."}
+            ), 502
         finally:
             limiter.release(ip)
 
@@ -190,7 +192,10 @@ def create_app() -> Flask:
             except Exception:  # never leak internals to the browser
                 app.logger.exception("trip planning failed")
                 events.put(
-                    ("trip_error", {"error": "A map or city data service is not responding. Try again."})
+                    (
+                        "trip_error",
+                        {"error": "A map or city data service is not responding. Try again."},
+                    )
                 )
             finally:
                 limiter.release(ip)
@@ -250,9 +255,7 @@ def create_app() -> Flask:
                     events.put(("result", {"answer": answer}))
                 except Exception:  # never leak internals to the browser
                     app.logger.exception("analyst question failed")
-                    events.put(
-                        ("ask_error", {"error": "The analyst hit an error. Try again."})
-                    )
+                    events.put(("ask_error", {"error": "The analyst hit an error. Try again."}))
                 finally:
                     limiter.release(ip)
                     events.put(None)  # sentinel: stream is done

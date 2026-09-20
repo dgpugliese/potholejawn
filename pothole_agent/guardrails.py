@@ -72,4 +72,5 @@ def validate_sql(sql: str) -> str:
                 f"Table '{table}' is not allowed. Allowed: {sorted(ALLOWED_TABLES)}"
             )
 
-    return f"SELECT * FROM ({sql}) AS guarded_query LIMIT {MAX_ROWS}"
+    # The wrapped SQL has passed every check above; this cap is defense in depth.
+    return f"SELECT * FROM ({sql}) AS guarded_query LIMIT {MAX_ROWS}"  # noqa: S608

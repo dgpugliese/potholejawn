@@ -8,10 +8,18 @@ The map therefore always works, and the agent adds judgment on top.
 
 from __future__ import annotations
 
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from .agent import run_agent
-from .routing import DEFAULT_BUFFER_M, Route, RoutingError, fetch_routes, geocode, potholes_along
+from .routing import (
+    DEFAULT_BUFFER_M,
+    Route,
+    RoutingError,
+    fetch_routes,
+    geocode,
+    potholes_along,
+)
 
 TRIP_SYSTEM_PROMPT = """\
 You are a driving assistant for Philadelphia that helps people avoid potholes.
@@ -44,7 +52,9 @@ class TripContext:
     # --- tools exposed to the model -------------------------------------
     def geocode_address(self, address: str, role: str = "") -> dict[str, Any]:
         found = geocode(address)
-        key = role if role in ("start", "end") else ("start" if "start" not in self.places else "end")
+        key = (
+            role if role in ("start", "end") else ("start" if "start" not in self.places else "end")
+        )
         self.places[key] = found
         return {"role": key, **found}
 
@@ -64,7 +74,8 @@ class TripContext:
             **route.summary(),
             "open_reports": len(route.potholes),
             "reports": [
-                {k: p[k] for k in ("address", "days_open", "mile_marker")} for p in route.potholes[:40]
+                {k: p[k] for k in ("address", "days_open", "mile_marker")}
+                for p in route.potholes[:40]
             ],
         }
 
@@ -100,7 +111,11 @@ class TripContext:
             "recommended": self.recommended,
             "reason": self.reason,
             "routes": [
-                {**route.summary(), "coordinates": route.coordinates, "potholes": route.potholes or []}
+                {
+                    **route.summary(),
+                    "coordinates": route.coordinates,
+                    "potholes": route.potholes or [],
+                }
                 for route in self.routes.values()
             ],
         }
@@ -234,5 +249,7 @@ def plan_trip(
     if mode == "fallback" or not briefing.strip():
         briefing = fallback_briefing(context)
     if mode == "fallback":
-        record({"type": "fallback", "text": f"Picked route {context.recommended}: {context.reason}"})
+        record(
+            {"type": "fallback", "text": f"Picked route {context.recommended}: {context.reason}"}
+        )
     return {**context.to_dict(), "briefing": briefing, "mode": mode, "steps": steps}

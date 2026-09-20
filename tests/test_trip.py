@@ -5,7 +5,12 @@ from types import SimpleNamespace
 import pytest
 
 from pothole_agent import routing, trip
-from pothole_agent.routing import Route, RoutingError, build_pothole_sql, in_philadelphia
+from pothole_agent.routing import (
+    Route,
+    RoutingError,
+    build_pothole_sql,
+    in_philadelphia,
+)
 from pothole_agent.webapp import create_app
 
 CITY_HALL = {"lat": 39.9526, "lon": -75.1652, "matched_address": "CITY HALL", "source": "fake"}
@@ -14,21 +19,35 @@ LINE = [[-75.1652, 39.9526], [-75.1660, 39.9300], [-75.1665, 39.9061]]
 
 
 def _pothole(n, days):
-    return {"id": n, "address": f"{n} BROAD ST", "lat": 39.93, "lon": -75.166,
-            "reported": "2026-01-01", "days_open": days, "meters_from_route": 5.0, "mile_marker": 1.0}
+    return {
+        "id": n,
+        "address": f"{n} BROAD ST",
+        "lat": 39.93,
+        "lon": -75.166,
+        "reported": "2026-01-01",
+        "days_open": days,
+        "meters_from_route": 5.0,
+        "mile_marker": 1.0,
+    }
 
 
 @pytest.fixture
 def fake_services(monkeypatch):
     places = {"start": CITY_HALL, "end": STADIUM}
-    monkeypatch.setattr(trip, "geocode", lambda address: places["start" if "hall" in address.lower() else "end"])
     monkeypatch.setattr(
-        trip, "fetch_routes",
+        trip, "geocode", lambda address: places["start" if "hall" in address.lower() else "end"]
+    )
+    monkeypatch.setattr(
+        trip,
+        "fetch_routes",
         lambda *_: [Route("A", 3.4, 12, LINE), Route("B", 3.9, 13, LINE)],
     )
     monkeypatch.setattr(
-        trip, "potholes_along",
-        lambda route, buffer_m=30: [_pothole(i, 100 + i) for i in range(5 if route.route_id == "A" else 1)],
+        trip,
+        "potholes_along",
+        lambda route, buffer_m=30: [
+            _pothole(i, 100 + i) for i in range(5 if route.route_id == "A" else 1)
+        ],
     )
 
 
@@ -82,10 +101,26 @@ def test_agent_path_uses_tools_and_records_choice(fake_services, tmp_path):
         return SimpleNamespace(content=content, stop_reason=stop, usage=usage)
 
     script = [
-        reply([use("1", "geocode_address", address="City Hall", role="start"),
-               use("2", "geocode_address", address="Stadium", role="end")], "tool_use"),
-        reply([use("3", "find_routes", start_lat=39.9526, start_lon=-75.1652,
-                   end_lat=39.9061, end_lon=-75.1665)], "tool_use"),
+        reply(
+            [
+                use("1", "geocode_address", address="City Hall", role="start"),
+                use("2", "geocode_address", address="Stadium", role="end"),
+            ],
+            "tool_use",
+        ),
+        reply(
+            [
+                use(
+                    "3",
+                    "find_routes",
+                    start_lat=39.9526,
+                    start_lon=-75.1652,
+                    end_lat=39.9061,
+                    end_lon=-75.1665,
+                )
+            ],
+            "tool_use",
+        ),
         reply([use("4", "scan_route", route_id="A")], "tool_use"),  # agent forgets route B
         reply([use("5", "recommend_route", route_id="A", reason="testing")], "tool_use"),
         reply([SimpleNamespace(type="text", text="Take route A.")], "end_turn"),
@@ -154,7 +189,9 @@ def test_stream_endpoint_validates_input():
 
 def test_stream_endpoint_reports_routing_errors(fake_services, monkeypatch):
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-    monkeypatch.setattr(trip, "geocode", lambda address: (_ for _ in ()).throw(RoutingError("no match")))
+    monkeypatch.setattr(
+        trip, "geocode", lambda address: (_ for _ in ()).throw(RoutingError("no match"))
+    )
     client = create_app().test_client()
     response = client.get("/api/trip/stream?start=Nowhere&end=Stadium")
     events = _sse_events(response.get_data(as_text=True))
@@ -164,7 +201,9 @@ def test_stream_endpoint_reports_routing_errors(fake_services, monkeypatch):
 
 def test_api_returns_trip(fake_services, monkeypatch):
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-    response = create_app().test_client().post("/api/trip", json={"start": "City Hall", "end": "Stadium"})
+    response = (
+        create_app().test_client().post("/api/trip", json={"start": "City Hall", "end": "Stadium"})
+    )
     assert response.status_code == 200
     assert response.get_json()["recommended"] == "B"
     assert response.headers["X-Content-Type-Options"] == "nosniff"

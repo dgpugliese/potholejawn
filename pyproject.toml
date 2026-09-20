@@ -1,0 +1,44 @@
+[project]
+name = "potholejawn"
+version = "1.0.0"
+description = "AI agent that routes you around Philly potholes using live 311 data"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.12"
+authors = [{ name = "David Pugliese" }]
+dependencies = [
+    "anthropic==1.7.0",
+    "requests==2.33.1",
+    "python-dotenv==1.2.2",
+    "flask==3.1.3",
+]
+
+[project.urls]
+Homepage = "https://potholejawn.com"
+Repository = "https://github.com/dgpugliese/potholejawn"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S"]
+ignore = [
+    "S113", # request timeouts are set via a module constant
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Broad catches in the web/agent layer are deliberate graceful degradation;
+# each site logs server-side and returns a generic message to the browser.
+"pothole_agent/webapp.py" = ["BLE001"]
+"pothole_agent/agent.py" = ["BLE001"]
+"pothole_agent/trip.py" = ["BLE001"]
+# S608 is a false positive here: this SQL is assembled from validated,
+# clamped numbers only (see module docstring); model-written SQL goes
+# through guardrails.validate_sql instead.
+"pothole_agent/routing.py" = ["S608"]
+"pothole_agent/tools.py" = ["S608"]
+"tests/*" = ["S101"] # asserts are the point of tests
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

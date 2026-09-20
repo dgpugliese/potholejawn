@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import requests
@@ -160,7 +160,8 @@ def build_pothole_sql(coordinates: list[list[float]], buffer_m: int = DEFAULT_BU
     line = f"ST_SetSRID(ST_GeomFromGeoJSON('{line_json}'), 4326)"
     return (
         "SELECT service_request_id, address, requested_datetime, lat, lon, "
-        f"ROUND(ST_Distance(the_geom::geography, {line}::geography)::numeric, 1) AS meters_from_route, "
+        f"ROUND(ST_Distance(the_geom::geography, {line}::geography)::numeric, 1) "
+        "AS meters_from_route, "
         f"ROUND(ST_LineLocatePoint({line}, the_geom)::numeric, 4) AS position "
         "FROM public_cases_fc "
         "WHERE service_name = 'Street Defect' AND status = 'Open' "
@@ -201,7 +202,7 @@ def potholes_in_bbox(south: float, west: float, north: float, east: float) -> li
     payload = response.json()
     if response.status_code != 200 or "error" in payload:
         raise RuntimeError(f"City data error: {payload.get('error', response.text[:200])}")
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     potholes = []
     for row in payload.get("rows", []):
         reported = datetime.fromisoformat(row["requested_datetime"].replace("Z", "+00:00"))
@@ -225,7 +226,7 @@ def potholes_along(route: Route, buffer_m: int = DEFAULT_BUFFER_M) -> list[dict[
     payload = response.json()
     if response.status_code != 200 or "error" in payload:
         raise RuntimeError(f"City data error: {payload.get('error', response.text[:200])}")
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     potholes = []
     for row in payload.get("rows", []):
         reported = datetime.fromisoformat(row["requested_datetime"].replace("Z", "+00:00"))

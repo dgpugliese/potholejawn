@@ -5,9 +5,10 @@ from __future__ import annotations
 import json
 import os
 import time
-from datetime import date
+from collections.abc import Callable
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 from .tools import TOOL_FUNCTIONS, TOOL_SPECS
 
@@ -83,7 +84,8 @@ def investigate(
     plain_text: bool = False,
 ) -> str:
     """Run a full 311 data investigation and return the final report text."""
-    system_prompt = SYSTEM_PROMPT.format(today=date.today().isoformat())
+    today = datetime.now(tz=UTC).date().isoformat()
+    system_prompt = SYSTEM_PROMPT.format(today=today)
     if plain_text:
         system_prompt += PLAIN_TEXT_SUFFIX
     return run_agent(
