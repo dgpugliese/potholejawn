@@ -1,0 +1,173 @@
+:root {
+  --asphalt: #26282b;
+  --asphalt-soft: #3a3d41;
+  --lane: #f7f6f2;
+  --sign-green: #006b54;
+  --sign-blue: #4a6785;
+  --warning: #ffcc00;
+  --cone: #e8590c;
+  --ink: #1b1c1e;
+  --muted: #5f6368;
+  --radius-sign: 10px;
+}
+
+* { box-sizing: border-box; }
+
+html, body { height: 100%; margin: 0; }
+
+body {
+  display: grid;
+  grid-template-columns: minmax(320px, 400px) 1fr;
+  font-family: "Overpass", "Helvetica Neue", Arial, sans-serif;
+  color: var(--ink);
+  background: var(--lane);
+  line-height: 1.45;
+}
+
+.panel {
+  overflow-y: auto;
+  padding: 1.5rem 1.25rem 1rem;
+  border-right: 6px solid var(--asphalt);
+  /* dashed centre line down the panel edge, like a lane marking */
+  background:
+    linear-gradient(var(--warning) 50%, transparent 50%) right -6px top / 2px 36px repeat-y,
+    var(--lane);
+}
+
+h1 {
+  margin: 0;
+  font-size: 2.1rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.05;
+}
+
+.tagline { margin: 0.35rem 0 1.25rem; color: var(--muted); }
+
+h2 { font-size: 1rem; font-weight: 800; margin: 1.5rem 0 0.5rem; }
+
+form { display: grid; gap: 0.3rem; }
+
+label { font-weight: 600; font-size: 0.9rem; margin-top: 0.5rem; }
+
+input[type="text"] {
+  font: inherit;
+  padding: 0.65rem 0.75rem;
+  border: 2px solid var(--asphalt);
+  border-radius: 6px;
+  background: #fff;
+}
+
+button#go {
+  margin-top: 0.9rem;
+  font: inherit;
+  font-weight: 800;
+  font-size: 1.05rem;
+  padding: 0.75rem;
+  color: var(--ink);
+  background: var(--warning);
+  border: 2px solid var(--asphalt);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+button#go:disabled { opacity: 0.55; cursor: progress; }
+
+input:focus-visible, button:focus-visible, summary:focus-visible, .route-sign:focus-visible {
+  outline: 3px solid var(--cone);
+  outline-offset: 2px;
+}
+
+.status { min-height: 1.4rem; margin: 0.75rem 0 0; font-weight: 600; }
+.status.error { color: #a61b1b; }
+
+.briefing {
+  margin-top: 1rem;
+  padding: 0.9rem 1rem;
+  background: #fff;
+  border-left: 6px solid var(--sign-green);
+  white-space: pre-wrap;
+}
+
+.briefing .mode { display: block; margin-top: 0.5rem; font-size: 0.8rem; color: var(--muted); }
+
+.routes { display: grid; gap: 0.75rem; margin-top: 1rem; }
+
+/* Route cards look like highway guide signs: solid fill, white inset border. */
+.route-sign {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.9rem;
+  width: 100%;
+  padding: 0.8rem 1rem;
+  font: inherit;
+  text-align: left;
+  color: #fff;
+  background: var(--sign-blue);
+  border: 0;
+  border-radius: var(--radius-sign);
+  box-shadow: inset 0 0 0 3px var(--sign-blue), inset 0 0 0 5px #fff;
+  cursor: pointer;
+  opacity: 0.8;
+}
+
+.route-sign.recommended { background: var(--sign-green); box-shadow: inset 0 0 0 3px var(--sign-green), inset 0 0 0 5px #fff; }
+.route-sign.active { opacity: 1; }
+
+.route-letter { font-size: 2rem; font-weight: 800; line-height: 1; }
+.route-meta { font-size: 0.9rem; }
+.route-meta strong { display: block; font-size: 1.05rem; }
+.route-count { text-align: center; font-size: 0.75rem; line-height: 1.1; }
+.route-count b { display: block; font-size: 1.7rem; font-weight: 800; color: var(--warning); }
+
+details { margin-top: 1.25rem; }
+summary { cursor: pointer; font-weight: 600; }
+#steps { padding-left: 1.2rem; font-size: 0.85rem; color: var(--asphalt-soft); }
+#steps li { margin: 0.3rem 0; overflow-wrap: anywhere; }
+#steps li.error { color: #a61b1b; }
+
+.pothole-list { list-style: none; margin: 0; padding: 0; }
+.pothole-list li {
+  display: grid;
+  grid-template-columns: 3.6rem 1fr auto;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #dcdad3;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+.pothole-list .mile { font-weight: 800; }
+.pothole-list .age { color: var(--muted); white-space: nowrap; }
+.pothole-list .age.old { color: var(--cone); font-weight: 600; }
+
+footer { margin-top: 2rem; font-size: 0.78rem; color: var(--muted); }
+
+#map { height: 100%; min-height: 50vh; background: #dfe3e6; }
+
+/* Mute the basemap so routes and warning signs carry the colour. */
+.leaflet-tile-pane { filter: grayscale(0.9) contrast(0.92) brightness(1.06); }
+
+/* Pothole markers: yellow diamond warning signs. Orange when open 90+ days. */
+.pothole-marker {
+  width: 18px; height: 18px;
+  background: var(--warning);
+  border: 2px solid var(--ink);
+  border-radius: 3px;
+  transform: rotate(45deg);
+}
+.pothole-marker.old { background: var(--cone); }
+
+.endpoint-marker {
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  border: 5px solid var(--asphalt);
+}
+
+@media (max-width: 760px) {
+  html, body { height: auto; }
+  body { display: flex; flex-direction: column-reverse; }
+  #map { height: 46vh; min-height: 0; flex: none; }
+  .panel { border-right: 0; border-top: 6px solid var(--asphalt); background: var(--lane); overflow: visible; }
+}

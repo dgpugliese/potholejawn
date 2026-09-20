@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pothole Pilot: Philadelphia routes with fewer potholes</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Overpass:wght@400;600;800&display=swap">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"
+        integrity="sha512-h9FcoyWjHcOcmEVkxOfTLnmZFWIH0iZhZT1H2TbOq55xssQGEJHEaIm+PgoUaZbRvQTNTluNOEfb1ZRy6D3BOw=="
+        crossorigin="anonymous" referrerpolicy="no-referrer">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <aside class="panel" aria-label="Trip planner">
+    <header>
+      <h1>Pothole Pilot</h1>
+      <p class="tagline">Pick the Philly route with fewer reported potholes.</p>
+    </header>
+
+    <form id="trip-form" autocomplete="off">
+      <label for="start">Starting from</label>
+      <input id="start" name="start" type="text" maxlength="200" required
+             placeholder="Temple University" value="Temple University">
+      <label for="end">Going to</label>
+      <input id="end" name="end" type="text" maxlength="200" required
+             placeholder="Citizens Bank Park" value="Citizens Bank Park">
+      <button id="go" type="submit">Find routes</button>
+    </form>
+
+    <p id="status" class="status" role="status" aria-live="polite"></p>
+
+    <section id="results" hidden>
+      <div id="briefing" class="briefing"></div>
+      <div id="routes" class="routes"></div>
+
+      <details id="activity">
+        <summary>What the agent did</summary>
+        <ol id="steps"></ol>
+      </details>
+
+      <h2 id="list-title"></h2>
+      <ul id="pothole-list" class="pothole-list"></ul>
+    </section>
+
+    <footer>
+      <p>Markers are open resident reports of street defects from the last 12 months, from
+        Philadelphia 311. They are not verified and some may be patched already.
+        Plan before you drive, not while driving.</p>
+      <p>Data: OpenDataPhilly. Routing: OSRM. Map: OpenStreetMap.</p>
+    </footer>
+  </aside>
+
+  <main id="map" aria-label="Map of routes and pothole reports"></main>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"
+          integrity="sha512-puJW3E/qXDqYp9IfhAI54BJEaWIfloJ7JWs7OeD5i6ruC9JZL1gERT1wjtwXFlh7CjE7ZJ+/vcRZRkIYIb6p4g=="
+          crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="/static/app.js"></script>
+</body>
+</html>
