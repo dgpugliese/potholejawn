@@ -4,7 +4,7 @@
   const OLD_REPORT_DAYS = 90;
   const COLORS = { recommended: "#006b54", other: "#4a6785" };
 
-  const map = L.map("map", { zoomControl: true }).setView([39.9526, -75.1652], 12);
+  const map = L.map("map", { zoomControl: true }).setView([39.9526, -75.1652], 13);
   L.tileLayer(
     "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
     {
@@ -177,6 +177,43 @@
     form.start.select();
   });
 
+  // Wire autocomplete to the pill and both trip inputs. The pill's geolocate
+  // row and the picker both hand off to the existing pill -> panel flow.
+  attachAutocomplete(pillInput, {
+    geolocate: function () {
+      requestLocation(
+        function (coords) {
+          form.start.value = coords;
+          const q = pillInput.value.trim();
+          if (q) form.end.value = q;
+          openPanel();
+          form.end.focus();
+        },
+        function (message) { openPanel(); setStatus(message, true); }
+      );
+    },
+    onPick: function () {
+      if (pillForm.requestSubmit) pillForm.requestSubmit();
+      else pillForm.dispatchEvent(new Event("submit", { cancelable: true }));
+    },
+  });
+  attachAutocomplete(form.start, {
+    geolocate: function () {
+      requestLocation(
+        function (coords) { form.start.value = coords; },
+        function (message) { setStatus(message, true); }
+      );
+    },
+  });
+  attachAutocomplete(form.end, {});
+
+  document.getElementById("use-location").addEventListener("click", function () {
+    requestLocation(
+      function (coords) { form.start.value = coords; },
+      function (message) { setStatus(message, true); }
+    );
+  });
+
   document.getElementById("panel-close").addEventListener("click", closePanel);
   document.getElementById("sheet-handle").addEventListener("click", function () {
     panel.classList.toggle("collapsed"); // mobile bottom sheet: tap to expand/collapse
@@ -282,6 +319,208 @@
   }
   map.on("zoomend", updateLandmarks);
   updateLandmarks();
+  // ---------------------------------------------------------------------------
+
+  // ---- Location autocomplete ------------------------------------------------
+  // Instant landmark matches, then debounced Photon (komoot) suggestions kept
+  // inside the Philly bounding box. Everything is rendered with textContent —
+  // API data is never parsed as HTML.
+  const AC_MIN_REMOTE = 3;
+  const AC_DEBOUNCE_MS = 300;
+  const AC_MAX_ITEMS = 8;
+  const PHOTON_URL =
+    "https://photon.komoot.io/api/?limit=5&lat=39.9526&lon=-75.1652" +
+    "&bbox=-75.30,39.85,-74.94,40.15&q=";
+
+  function inPhilly(lat, lon) {
+    return lat >= 39.85 && lat <= 40.15 && lon >= -75.3 && lon <= -74.94;
+  }
+
+  function requestLocation(onDone, onError) {
+    if (!navigator.geolocation) {
+      onError("Location is not available in this browser.");
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      function (pos) {
+        const lat = pos.coords.latitude;
+        const lon = pos.coords.longitude;
+        if (!inPhilly(lat, lon)) {
+          onError("You appear to be outside Philadelphia — enter a Philly address instead.");
+          return;
+        }
+        onDone(lat.toFixed(5) + ", " + lon.toFixed(5));
+      },
+      function () {
+        onError("Could not get your location. Check the browser's location permission.");
+      },
+      { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 }
+    );
+  }
+
+  // opts.geolocate: optional callback for a leading "Use my current location"
+  // row. opts.onPick: called after a suggestion fills the input (pill flow).
+  function attachAutocomplete(input, opts) {
+    opts = opts || {};
+    const box = el("div", "ac-list");
+    box.hidden = true;
+    document.body.appendChild(box);
+    let items = [];
+    let active = -1;
+    let seq = 0;
+    let timer = null;
+
+    function position() {
+      const r = input.getBoundingClientRect();
+      box.style.left = r.left + "px";
+      box.style.top = r.bottom + 4 + "px";
+      box.style.width = r.width + "px";
+    }
+
+    function close() {
+      box.hidden = true;
+      items = [];
+      active = -1;
+      seq += 1; // ignore any in-flight Photon response
+      clearTimeout(timer);
+    }
+
+    function renderList() {
+      box.replaceChildren();
+      if (!items.length) {
+        box.hidden = true;
+        return;
+      }
+      items.forEach(function (item, i) {
+        const row = el("div", "ac-item" + (i === active ? " active" : ""));
+        if (item.glyph) row.append(el("span", "ac-glyph", item.glyph));
+        const text = el("span", "ac-text");
+        text.append(el("span", "ac-label", item.label));
+        if (item.sub) text.append(el("span", "ac-sub", item.sub));
+        row.append(text);
+        row.addEventListener("mousedown", function (event) {
+          event.preventDefault(); // keep focus in the input
+          pick(item);
+        });
+        box.append(row);
+      });
+      position();
+      box.hidden = false;
+    }
+
+    function pick(item) {
+      close();
+      item.pick();
+    }
+
+    function choose(value) {
+      input.value = value;
+      if (opts.onPick) opts.onPick(value);
+    }
+
+    function localMatches(q) {
+      const needle = q.toLowerCase();
+      return LANDMARKS.filter(function (lm) {
+        return lm.name.toLowerCase().indexOf(needle) !== -1;
+      })
+        .slice(0, 5)
+        .map(function (lm) {
+          return {
+            glyph: lm.glyph,
+            label: lm.name,
+            sub: "Philly landmark",
+            pick: function () { choose(lm.name + ", Philadelphia, PA"); },
+          };
+        });
+    }
+
+    function refresh() {
+      const q = input.value.trim();
+      let list = [];
+      if (opts.geolocate) {
+        list.push({
+          glyph: "\u{1F4CD}",
+          label: "Use my current location",
+          pick: opts.geolocate,
+        });
+      }
+      if (q) list = list.concat(localMatches(q));
+      items = list;
+      active = -1;
+      renderList();
+      clearTimeout(timer);
+      seq += 1;
+      if (q.length < AC_MIN_REMOTE) return;
+      const mySeq = seq;
+      timer = setTimeout(function () {
+        fetch(PHOTON_URL + encodeURIComponent(q))
+          .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error("photon " + r.status)); })
+          .then(function (data) {
+            if (mySeq !== seq || document.activeElement !== input) return;
+            const seen = {};
+            items.forEach(function (i) { seen[i.label + "|" + (i.sub || "")] = true; });
+            (data.features || []).forEach(function (f) {
+              if (items.length >= AC_MAX_ITEMS) return;
+              const c = f.geometry && f.geometry.coordinates;
+              const p = f.properties || {};
+              if (!c || !inPhilly(c[1], c[0])) return;
+              // The bbox rectangle clips a corner of New Jersey; drop anything
+              // whose named city is not Philadelphia.
+              if (typeof p.city === "string" && p.city && !/philadelphia/i.test(p.city)) return;
+              if (typeof p.state === "string" && /new jersey/i.test(p.state)) return;
+              let label = typeof p.name === "string" && p.name ? p.name : "";
+              if (!label && typeof p.street === "string" && p.street) {
+                label = (typeof p.housenumber === "string" && p.housenumber ? p.housenumber + " " : "") + p.street;
+              }
+              if (!label) return;
+              const sub = [p.district, p.city || "Philadelphia", p.postcode]
+                .filter(function (x) { return typeof x === "string" && x; })
+                .join(", ");
+              const key = label + "|" + sub;
+              if (seen[key]) return;
+              seen[key] = true;
+              items.push({
+                label: label,
+                sub: sub,
+                pick: function () {
+                  const cityHint = /philadelphia|phila/i.test(label) ? "" : ", Philadelphia, PA";
+                  choose(label + cityHint);
+                },
+              });
+            });
+            renderList();
+          })
+          .catch(function () { /* landmarks-only is still a working autocomplete */ });
+      }, AC_DEBOUNCE_MS);
+    }
+
+    input.addEventListener("input", refresh);
+    input.addEventListener("focus", refresh);
+    input.addEventListener("blur", function () { setTimeout(close, 120); });
+    input.addEventListener("keydown", function (event) {
+      if (box.hidden) return;
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        active = (active + 1) % items.length;
+        renderList();
+      } else if (event.key === "ArrowUp") {
+        event.preventDefault();
+        active = (active - 1 + items.length) % items.length;
+        renderList();
+      } else if (event.key === "Enter") {
+        if (active >= 0) {
+          event.preventDefault();
+          pick(items[active]);
+        } else {
+          close(); // fall through to the normal form submit
+        }
+      } else if (event.key === "Escape") {
+        event.stopPropagation(); // don't also close the panel
+        close();
+      }
+    });
+    window.addEventListener("resize", function () { if (!box.hidden) position(); });
+  }
   // ---------------------------------------------------------------------------
 
   function drawMap() {
@@ -456,6 +695,16 @@
     askStatusEl.classList.toggle("error", Boolean(isError));
     askStatusEl.classList.toggle("busy", Boolean(message) && !isError);
   }
+
+  // Example-question chips: fill the box and ask right away.
+  document.querySelectorAll(".ask-chip").forEach(function (chip) {
+    chip.addEventListener("click", function () {
+      if (askButton.disabled) return; // one question at a time
+      askForm.question.value = chip.textContent;
+      if (askForm.requestSubmit) askForm.requestSubmit();
+      else askForm.dispatchEvent(new Event("submit", { cancelable: true }));
+    });
+  });
 
   askForm.addEventListener("submit", function (event) {
     event.preventDefault();

@@ -48,8 +48,12 @@
 
       <form id="trip-form" autocomplete="off">
         <label for="start">Starting from</label>
-        <input id="start" name="start" type="text" maxlength="200" required
-               placeholder="Temple University" value="Temple University">
+        <div class="input-geo">
+          <input id="start" name="start" type="text" maxlength="200" required
+                 placeholder="Temple University" value="Temple University">
+          <button id="use-location" class="geo-btn" type="button"
+                  title="Use my current location" aria-label="Use my current location">&#x1F4CD;</button>
+        </div>
         <label for="end">Going to</label>
         <input id="end" name="end" type="text" maxlength="200" required
                placeholder="Citizens Bank Park" value="Citizens Bank Park">
@@ -77,7 +81,14 @@
       </section>
 
       <section id="ask" aria-label="Ask the analyst">
-        <h2>Ask the 311 analyst</h2>
+        <h2 class="ask-title">Ask the 311 analyst</h2>
+        <p class="ask-explainer">An AI analyst that writes SQL against 5.9M live Philadelphia
+          311 records. Ask it anything about the city's service requests.</p>
+        <div class="ask-chips" role="group" aria-label="Example questions">
+          <button type="button" class="ask-chip">Which zips wait longest for pothole repairs?</button>
+          <button type="button" class="ask-chip">Illegal dumping vs potholes: which gets fixed faster?</button>
+          <button type="button" class="ask-chip">Which street has the most open pothole reports?</button>
+        </div>
         <form id="ask-form" autocomplete="off">
           <label for="question">A question about Philly 311 data</label>
           <input id="question" name="question" type="text" maxlength="500" required

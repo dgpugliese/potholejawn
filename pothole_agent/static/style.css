@@ -432,7 +432,110 @@ details ol { margin: var(--space-2) 0 var(--space-3); }
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* ---- Ask-the-analyst section ---------------------------------------------- */
 #ask { margin-top: var(--space-6); padding-top: var(--space-3); border-top: 1px solid var(--hairline); }
+
+/* Small hazard-yellow tick under the title, like a mile marker. */
+.ask-title { position: relative; padding-bottom: var(--space-2); }
+.ask-title::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 42px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--warning);
+  box-shadow: 0 1px 0 var(--asphalt);
+}
+
+.ask-explainer {
+  margin: 0 0 var(--space-3);
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.ask-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.ask-chip {
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.3rem 0.65rem;
+  color: var(--asphalt-soft);
+  background: var(--card-bg);
+  border: 1.5px solid var(--asphalt);
+  border-radius: 999px;
+  cursor: pointer;
+  box-shadow: 0 1px 0 var(--asphalt);
+  transition: transform 120ms ease, box-shadow 120ms ease, background-color 120ms ease, color 120ms ease;
+}
+
+.ask-chip:hover {
+  background: var(--warning);
+  color: var(--ink);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 0 var(--asphalt);
+}
+
+.ask-chip:active { transform: translateY(1px); box-shadow: 0 0 0 var(--asphalt); }
+
+/* ---- Location autocomplete dropdown --------------------------------------- */
+.ac-list {
+  position: fixed;
+  z-index: 1300;
+  max-height: 42vh;
+  overflow-y: auto;
+  padding: 4px;
+  background: var(--card-bg);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-float);
+}
+
+.ac-item {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.45rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.ac-item:hover, .ac-item.active { background: rgba(255, 204, 0, 0.2); }
+
+.ac-glyph { flex: none; width: 1.25rem; text-align: center; }
+.ac-text { display: flex; flex-direction: column; min-width: 0; }
+.ac-label { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ac-sub { font-size: 0.76rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ---- Use-my-location button inside the start input ------------------------- */
+.input-geo { position: relative; }
+.input-geo input { width: 100%; padding-right: 2.6rem; }
+
+.geo-btn {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 0.25rem 0.35rem;
+  font-size: 1.02rem;
+  line-height: 1;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+
+.geo-btn:hover { background: rgba(38, 40, 43, 0.08); }
 
 .live-title {
   font-size: 0.75rem;
