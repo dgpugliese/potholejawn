@@ -33,7 +33,12 @@ Live at **[potholejawn.com](https://potholejawn.com)** (also [potholejawn.app](h
 - Or barely type: the search **autocompletes real Philly places** (Liberty Bell, Reading Terminal, the Pennovation Center — where this was built), and 📍 routes from your actual location.
 - After a trip, open **"What the agent did"** for the full audit trail, or ask the **311 analyst** an open-ended question ("where is the city slowest at fixing potholes?") right in the panel.
 
-## Features
+## How the AI agents are used
+
+Two agents, one shared hand-rolled tool-calling loop on the Anthropic API (no
+framework). The model chooses which tools to call and in what order; tool
+errors are fed back so it self-corrects; a 12-step limit and a full JSONL audit
+trail per run keep it bounded and inspectable.
 
 **Trip agent** — geocodes both endpoints, pulls the main route plus alternatives
 from OSRM, runs a PostGIS query against the city's live 311 API for open
@@ -142,6 +147,11 @@ python -m pothole_agent.cli "Which zip codes wait longest for abandoned car remo
 ```bash
 pytest -q
 ```
+
+## Team
+
+**David Pugliese** — solo build at the Code &amp; Coffee Philadelphia AI Agent
+Hackathon, September 20, 2026 (with Claude Code as the pair programmer).
 
 ## Data sources
 

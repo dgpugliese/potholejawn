@@ -15,7 +15,7 @@ dependencies = [
 
 [project.urls]
 Homepage = "https://potholejawn.com"
-Repository = "https://github.com/dgpugliese/potholejawn"
+Repository = "https://github.com/dgpugliese/potholejawn-hackathon"
 
 [tool.ruff]
 line-length = 100

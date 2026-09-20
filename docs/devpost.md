@@ -1,7 +1,7 @@
 # potholejawn
 
 **Devpost submission copy — AI Agent Hackathon, Coffee and Code Philadelphia — Open Track**
-Builder: David Pugliese (solo). Repo: https://github.com/dgpugliese/potholejawn · Home: https://potholejawn.com
+Builder: David Pugliese (solo). Repo: https://github.com/dgpugliese/potholejawn-hackathon · Home: https://potholejawn.com
 
 ---
 
