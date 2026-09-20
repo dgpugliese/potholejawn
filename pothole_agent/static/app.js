@@ -33,6 +33,7 @@
   function setStatus(message, isError) {
     statusEl.textContent = message;
     statusEl.classList.toggle("error", Boolean(isError));
+    statusEl.classList.toggle("busy", Boolean(message) && !isError);
   }
 
   function ageLabel(days) {
@@ -213,6 +214,7 @@
   function setAskStatus(message, isError) {
     askStatusEl.textContent = message;
     askStatusEl.classList.toggle("error", Boolean(isError));
+    askStatusEl.classList.toggle("busy", Boolean(message) && !isError);
   }
 
   askForm.addEventListener("submit", function (event) {
