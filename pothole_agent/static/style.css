@@ -15,12 +15,15 @@
   --card-bg: #fff;
   --shadow-card: 0 1px 2px rgba(27, 28, 30, 0.06), 0 4px 12px rgba(27, 28, 30, 0.05);
   --shadow-raised: 0 2px 4px rgba(27, 28, 30, 0.12), 0 8px 20px rgba(27, 28, 30, 0.10);
+  --shadow-float: 0 4px 10px rgba(27, 28, 30, 0.14), 0 16px 40px rgba(27, 28, 30, 0.16);
   --space-1: 0.25rem;
   --space-2: 0.5rem;
   --space-3: 0.75rem;
   --space-4: 1rem;
   --space-5: 1.5rem;
   --space-6: 2rem;
+  --panel-w: 380px;
+  --panel-ease: 300ms cubic-bezier(0.32, 0.72, 0.24, 1);
 }
 
 * { box-sizing: border-box; }
@@ -28,35 +31,155 @@
 html, body { height: 100%; margin: 0; }
 
 body {
-  display: grid;
-  grid-template-columns: minmax(320px, 400px) 1fr;
   font-family: "Overpass", "Helvetica Neue", Arial, sans-serif;
   color: var(--ink);
   background: var(--lane);
   line-height: 1.5;
+  overflow: hidden;
 }
 
+/* ---- Full-viewport map; everything else floats over it ------------------- */
+#map {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  background: #dfe3e6;
+}
+
+/* Emblem watermark, always centred in the viewport. It lives in a custom
+   Leaflet pane (z 350: above tiles at 200, below overlays/markers/popups)
+   and app.js re-centres it on every map move. */
+.map-watermark {
+  position: absolute;
+  width: 340px;
+  max-width: 60vw;
+  opacity: 0.085;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  user-select: none;
+}
+
+/* ---- Floating search pill (Apple Maps / Google Maps style) ---------------- */
+.search-pill {
+  position: fixed;
+  top: max(16px, env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: min(460px, calc(100vw - 24px));
+  padding: 0.45rem 0.5rem 0.45rem 0.9rem;
+  background: rgba(255, 255, 255, 0.78);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  backdrop-filter: blur(14px) saturate(1.4);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 999px;
+  box-shadow: var(--shadow-float);
+}
+
+.pill-logo { flex: none; width: 28px; height: auto; }
+
+.search-pill input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-weight: 600;
+  border: 0;
+  background: transparent;
+  padding: 0.35rem 0;
+  color: var(--ink);
+}
+
+.search-pill input::placeholder { color: #7a7f85; font-weight: 600; }
+.search-pill input:focus { outline: none; }
+.search-pill:focus-within {
+  border-color: var(--asphalt);
+  box-shadow: var(--shadow-float), 0 0 0 2px rgba(38, 40, 43, 0.25);
+}
+
+#pill-go {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  color: var(--ink);
+  background: var(--warning);
+  border: 2px solid var(--asphalt);
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 1px 0 var(--asphalt);
+  transition: transform 120ms ease, box-shadow 120ms ease, filter 120ms ease;
+}
+#pill-go:hover { filter: brightness(1.04); transform: translateY(-1px); box-shadow: 0 2px 0 var(--asphalt); }
+#pill-go:active { transform: translateY(1px); box-shadow: 0 0 0 var(--asphalt); }
+
+/* ---- Slide-in trip panel --------------------------------------------------- */
 .panel {
-  overflow-y: auto;
-  padding: var(--space-6) var(--space-5) var(--space-4);
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  z-index: 1050;
+  width: var(--panel-w);
+  max-width: calc(100vw - 16px);
+  display: flex;
+  flex-direction: column;
   border-right: 6px solid var(--asphalt);
   /* dashed centre line down the panel edge, like a lane marking */
   background:
     linear-gradient(var(--warning) 50%, transparent 50%) right -6px top / 2px 36px repeat-y,
     var(--lane);
+  box-shadow: var(--shadow-float);
+  transform: translateX(calc(-100% - 24px));
+  transition: transform var(--panel-ease);
+  visibility: hidden;
 }
 
+body.panel-open .panel { transform: translateX(0); visibility: visible; }
+
+/* keep it discoverable to transition back out */
+.panel { transition: transform var(--panel-ease), visibility 0s linear 320ms; }
+body.panel-open .panel { transition: transform var(--panel-ease), visibility 0s; }
+
+.panel-scroll {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--space-5) var(--space-5) var(--space-4);
+}
+
+.sheet-handle { display: none; }
+
+/* ---- Masthead: emblem left, wordmark + tagline right ----------------------- */
 .masthead {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-3);
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  column-gap: var(--space-3);
+  align-items: end;
 }
 
-.masthead .logo { flex: none; margin-top: 3px; }
+/* The emblem art has a flat truncated bottom: rest it on the wordmark
+   baseline with a touch of optical lift. Never mask it into a circle. */
+.masthead .logo {
+  grid-column: 1;
+  grid-row: 1;
+  width: 66px;
+  height: auto;
+  margin-bottom: 5px;
+}
 
 h1 {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: end;
   margin: 0;
-  font-size: clamp(1.9rem, 5vw, 2.25rem);
+  font-size: clamp(1.8rem, 4.5vw, 2.1rem);
   font-weight: 800;
   letter-spacing: -0.02em;
   line-height: 1.05;
@@ -73,12 +196,34 @@ h1 {
 }
 
 .tagline {
-  margin: var(--space-2) 0 var(--space-5);
+  grid-column: 2 / 4;
+  grid-row: 2;
+  margin: var(--space-2) 0 var(--space-4);
   color: var(--muted);
-  font-size: 0.95rem;
+  font-size: 0.92rem;
   line-height: 1.45;
   max-width: 32ch;
 }
+
+#panel-close {
+  grid-column: 3;
+  grid-row: 1;
+  align-self: start;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  color: var(--asphalt-soft);
+  background: var(--card-bg);
+  border: 1px solid var(--hairline);
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: var(--shadow-card);
+  transition: background-color 120ms ease, transform 120ms ease;
+}
+#panel-close:hover { background: rgba(38, 40, 43, 0.06); transform: translateX(-1px); }
 
 h2 {
   font-size: 0.8rem;
@@ -349,8 +494,6 @@ footer a:hover { color: var(--sign-green); }
 
 .footer-credit { letter-spacing: 0.01em; }
 
-#map { height: 100%; min-height: 50vh; background: #dfe3e6; }
-
 /* Mute the basemap so routes and warning signs carry the colour. */
 .leaflet-tile-pane { filter: grayscale(0.9) contrast(0.92) brightness(1.06); }
 
@@ -436,18 +579,66 @@ footer a:hover { color: var(--sign-green); }
   box-shadow: 0 1px 3px rgba(27, 28, 30, 0.35);
 }
 
-@media (max-width: 760px) {
-  html, body { height: auto; }
-  body { display: flex; flex-direction: column-reverse; }
-  #map { height: 46vh; min-height: 0; flex: none; }
+/* ---- Mobile: bottom sheet (Waze / Google Maps pattern) --------------------- */
+@media (max-width: 768px) {
+  .map-watermark { width: 200px; }
+
+  .search-pill {
+    left: 12px;
+    right: 12px;
+    width: auto;
+    transform: none;
+  }
+
   .panel {
+    top: auto;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    max-width: none;
+    height: 58vh;
     border-right: 0;
     border-top: 6px solid var(--asphalt);
-    background: var(--lane);
-    overflow: visible;
-    padding: var(--space-5) var(--space-4) var(--space-4);
+    border-radius: 16px 16px 0 0;
+    /* lane marking runs along the top edge on mobile */
+    background:
+      linear-gradient(90deg, var(--warning) 50%, transparent 50%) left top -6px / 36px 2px repeat-x,
+      var(--lane);
+    transform: translateY(calc(100% + 24px));
   }
-  h1 { font-size: 1.9rem; }
+
+  body.panel-open .panel { transform: translateY(0); }
+  body.panel-open .panel.collapsed { transform: translateY(calc(100% - 56px)); }
+
+  .sheet-handle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    width: 100%;
+    height: 30px;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+  }
+
+  .sheet-handle span {
+    display: block;
+    width: 44px;
+    height: 5px;
+    border-radius: 999px;
+    background: rgba(38, 40, 43, 0.28);
+  }
+
+  .panel-scroll { padding: 0 var(--space-4) var(--space-4); }
+
+  #panel-close { display: none; }
+
+  .masthead .logo { width: 52px; margin-bottom: 4px; }
+  h1 { font-size: 1.7rem; }
+  .tagline { grid-column: 2 / 3; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -16,6 +16,56 @@
 
   const layers = L.layerGroup().addTo(map);
 
+  // ---- Brand watermark ------------------------------------------------------
+  // The emblem sits faded behind the data, always centred in the viewport.
+  // It lives in a custom pane (z 350: above tiles, below overlays/markers/
+  // popups) and is re-centred on every map move so it never drifts with pans.
+  const watermarkPane = map.createPane("watermark");
+  watermarkPane.style.zIndex = 350;
+  watermarkPane.style.pointerEvents = "none";
+  const watermark = document.createElement("img");
+  watermark.src = "/static/logo.png";
+  watermark.alt = "";
+  watermark.className = "map-watermark";
+  watermarkPane.appendChild(watermark);
+  function centerWatermark() {
+    const c = map.containerPointToLayerPoint(map.getSize().divideBy(2));
+    L.DomUtil.setPosition(watermark, c);
+  }
+  map.on("move zoom viewreset resize", centerWatermark);
+  centerWatermark();
+
+  // ---- Floating pill + slide-in panel ---------------------------------------
+  const panel = document.getElementById("panel");
+  let panelOpen = false;
+
+  function openPanel() {
+    panel.classList.remove("collapsed");
+    if (panelOpen) return;
+    panelOpen = true;
+    document.body.classList.add("panel-open");
+    setTimeout(function () { map.invalidateSize(); }, 320);
+  }
+
+  function closePanel() {
+    if (!panelOpen) return;
+    panelOpen = false;
+    document.body.classList.remove("panel-open");
+    setTimeout(function () { map.invalidateSize(); }, 320);
+  }
+
+  // Padding for fitBounds so routes are not hidden under the open panel,
+  // the pill, or the mobile bottom sheet.
+  function fitPadding() {
+    const mobile = window.matchMedia("(max-width: 768px)").matches;
+    const collapsed = panel.classList.contains("collapsed");
+    if (mobile) {
+      const sheet = panelOpen && !collapsed ? Math.round(window.innerHeight * 0.58) + 16 : 40;
+      return { paddingTopLeft: [28, 84], paddingBottomRight: [28, sheet] };
+    }
+    return { paddingTopLeft: [panelOpen ? 380 + 40 : 40, 84], paddingBottomRight: [40, 40] };
+  }
+
   // ---- Citywide open-report layer -------------------------------------------
   // Before a trip is planned, show every open pothole report in view as quiet
   // dots on a canvas renderer. Hidden while a trip result is on screen so the
@@ -108,6 +158,31 @@
   const button = document.getElementById("go");
   const statusEl = document.getElementById("status");
   const results = document.getElementById("results");
+
+  // Pill -> panel handoff: typing a destination in the floating pill opens the
+  // trip panel with that address in the "Going to" field and puts focus in the
+  // "Starting from" field. An empty pill just opens the panel.
+  const pillForm = document.getElementById("pill");
+  const pillInput = document.getElementById("pill-input");
+  pillForm.addEventListener("submit", function (event) {
+    event.preventDefault();
+    const q = pillInput.value.trim();
+    if (q) form.end.value = q;
+    openPanel();
+    form.start.focus();
+    form.start.select();
+  });
+
+  document.getElementById("panel-close").addEventListener("click", closePanel);
+  document.getElementById("sheet-handle").addEventListener("click", function () {
+    panel.classList.toggle("collapsed"); // mobile bottom sheet: tap to expand/collapse
+  });
+  document.addEventListener("keydown", function (event) {
+    if (event.key === "Escape" && panelOpen && !document.querySelector(".leaflet-popup")) {
+      closePanel();
+    }
+  });
+
   let trip = null;
   let activeId = null;
   let markersById = {};
@@ -185,6 +260,7 @@
       btn.addEventListener("click", function () {
         form[pair[1]].value = lm.name + ", Philadelphia, PA";
         marker.closePopup();
+        openPanel(); // the panel may be closed; bring the trip form into view
         const other = pair[1] === "start" ? form.end : form.start;
         if (other.value.trim()) button.focus();
         else other.focus();
@@ -217,7 +293,7 @@
         opacity: isActive ? 0.95 : 0.6,
       }).addTo(layers);
       line.on("click", () => selectRoute(route.route_id));
-      if (isActive) map.fitBounds(line.getBounds(), { padding: [40, 40] });
+      if (isActive) map.fitBounds(line.getBounds(), fitPadding());
     });
 
     const active = trip.routes.find((r) => r.route_id === activeId);
