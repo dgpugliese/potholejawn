@@ -21,7 +21,9 @@ Philadelphia publishes every 311 request since 2014 — about 5.9 million rows o
 
 Real example from live data: Temple University to Citizens Bank Park. Same 17-minute drive; one route passes 9 open pothole reports, the other 13.
 
-The repo also ships a second agent — a 311 **accountability analyst** — that answers open-ended questions from the command line ("where is the city slowest at fixing potholes?") by writing its own SQL, running it through a guardrail validator, reading errors, and retrying until it has an answer. Both agents share one generic tool loop.
+Before you even plan a trip, the map lights up with **every open pothole report in view** — 1,500+ across the city, live from 311, each clickable. Tap a Philly landmark chip (Liberty Bell, the Rocky steps, Pennovation Center — where this was built) and hit "From here" / "To here" to start a route without typing. It's live at **potholejawn.com**, installable to a phone home screen as a PWA, in a map-first UI modeled on the navigation apps everyone already knows.
+
+The repo also ships a second agent — a 311 **accountability analyst** — that answers open-ended questions ("where is the city slowest at fixing potholes?") right in the app or from the CLI by writing its own SQL, running it through a guardrail validator, reading errors, and retrying until it has an answer. Both agents share one generic tool loop.
 
 ## How we built it
 
@@ -30,7 +32,7 @@ The repo also ships a second agent — a 311 **accountability analyst** — that
 - **Analyst agent** (`agent.py` + `tools.py`): `get_schema`, `list_categories`, `run_sql`. It's told to state a plan, query in focused steps, and never state a number it didn't get from a query.
 - **Data layer** (`routing.py`): US Census geocoder for street addresses with OpenStreetMap Nominatim fallback for landmarks (neither alone covers Philly well), OSRM for routes, and a PostGIS `ST_DWithin` query against the city's public Carto SQL API for potholes along a route buffer.
 - **UI** (`webapp.py` + Leaflet): Flask serving a static map. Agent steps stream to the browser live over Server-Sent Events, so you watch the agent think — geocode, route, scan, recommend — instead of staring at a spinner. A "What the agent did" panel shows the full audit trail including token usage.
-- **Tests**: 27 pytest tests running against a fake model client — no API key or network needed for CI.
+- **Tests**: 40 pytest tests running against a fake model client — no API key or network needed for CI.
 
 ## Challenges we ran into
 
@@ -38,15 +40,15 @@ The repo also ships a second agent — a 311 **accountability analyst** — that
 - **No single geocoder works for Philly.** The Census geocoder nails street addresses and intersections but not landmarks; Nominatim is the reverse. The geocode tool chains them.
 - **Letting a model write SQL against a live city API is scary.** We treat model-written SQL as untrusted input: a dedicated validator (`guardrails.py`) enforces single-statement read-only SELECTs, a table allowlist, no comments, no admin functions (`pg_sleep`, `pg_read_file`, `dblink`, ...), and wraps every query in a hard 200-row LIMIT. Getting that right without breaking legitimate queries (CTEs, `EXTRACT(... FROM ...)`) took real care.
 - **Demos die.** Public geocoders, the OSRM demo server, and the model API can all flake. The whole system degrades gracefully — see safety, below.
-- **CARTO's basemap tiles started requiring a key mid-build**; we switched to OSM tiles.
+- **Basemap roulette.** OpenStreetMap's volunteer tile servers blocked the public deployment mid-afternoon; CARTO's rasters watermark without a key now; we landed on Esri's World Street Map. Third provider's the charm.
 
 ## Accomplishments that we're proud of
 
 - **True agentic design, not a script with an LLM stapled on.** The agent picks its own tools and order, reads its own SQL errors and fixes them, records its route choice as structured output, and everything it does is auditable after the fact.
 - **The demo cannot die.** If the API key is missing or the model call fails, a plain-Python fallback planner produces the same map with a simpler briefing — same result shape, honest `mode` flag. If the agent skips a route, the deterministic pass scans it anyway.
-- **Defense in depth for a one-day hack**: SQL guardrails, a route-SQL path the model never touches (built in `routing.py` from validated numbers only, buffer clamped 10–100 m), a Philadelphia bounding-box geofence on every coordinate, `textContent`-only DOM insertion, Subresource Integrity pins on CDN assets, a step limit, and a full JSONL audit trail.
+- **Defense in depth for a one-day hack**: SQL guardrails, a route-SQL path the model never touches (built in `routing.py` from validated numbers only, buffer clamped 10–100 m), a Philadelphia bounding-box geofence on every coordinate, `textContent`-only DOM insertion, Subresource Integrity pins on CDN assets, a step limit, per-IP and global rate limiting on the public deployment, and a full JSONL audit trail.
 - **Honest framing baked in**: markers are labeled resident *reports*, not verified potholes; the analyst is instructed to report open-case share next to any time-to-close figure and to never confuse "more reports" with "more potholes."
-- 27 tests, pinned dependencies, ~900 lines of Python, built solo in one day.
+- 40 tests, pinned dependencies, zero lint findings, zero known-CVE dependencies — built solo in one day.
 
 ## What we learned
 
@@ -60,7 +62,6 @@ The repo also ships a second agent — a 311 **accountability analyst** — that
 - Live at **potholejawn.com** (and potholejawn.app) as the product home — installable as a PWA today, app stores via Capacitor next.
 - Severity weighting by report age and defect type, not just count.
 - A "report a pothole" deep link to Philly 311 from any marker.
-- A follow-up question box in the UI wired to the analyst agent ("how long do potholes in this zip take to fix?").
 - Self-hosted OSRM with live traffic instead of the public demo server.
 - Same pattern, other cities: any Socrata/Carto 311 feed can slot in behind the same agent loop.
 
