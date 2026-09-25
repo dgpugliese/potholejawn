@@ -87,7 +87,11 @@ def create_app() -> Flask:
 
     def client_ip() -> str:
         # Behind the Cloudflare tunnel the real client is in CF-Connecting-IP.
-        return request.headers.get("CF-Connecting-IP") or request.remote_addr or ""
+        # Only trust the header if the request came from our trusted local tunnel.
+        remote = request.remote_addr or ""
+        if remote in _LOCAL_IPS:
+            return request.headers.get("CF-Connecting-IP") or remote
+        return remote
 
     @app.get("/")
     def index():
